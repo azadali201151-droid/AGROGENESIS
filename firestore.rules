@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.uid == request.auth.uid &&
+             data.email is string &&
+             data.email.size() < 256;
+    }
+
+    function isValidScan(data) {
+      return data.keys().hasAll(['id', 'userId', 'timestamp', 'image', 'result']) &&
+             data.userId == request.auth.uid &&
+             data.image is string &&
+             data.image.size() < 500000; // 500kb limit for thumbnail string
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL']);
+      
+      match /scans/{scanId} {
+        allow list, get: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidScan(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

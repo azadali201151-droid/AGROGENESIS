@@ -1,0 +1,6 @@
+{
+  "name": "AgriGuard",
+  "description": "AI-powered crop health assistant for disease detection and plant care.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["AI Crop Disease Detection", "Plant Care Guide", "Organic Treatments"]
+}
