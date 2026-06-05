@@ -26,7 +26,15 @@ const LANG_CODES: Record<string, string> = {
   "Simplified Chinese": 'zh-CN',
   "Traditional Chinese": 'zh-TW',
   Urdu: 'ur-PK',
-  Sindhi: 'sd-PK'
+  Sindhi: 'sd-PK',
+  Spanish: 'es-ES',
+  Arabic: 'ar-SA',
+  Punjabi: 'pa-PK',
+  Hindi: 'hi-IN',
+  French: 'fr-FR',
+  German: 'de-DE',
+  Portuguese: 'pt-PT',
+  Turkish: 'tr-TR'
 };
 
 const LANGUAGES = [
@@ -34,7 +42,15 @@ const LANGUAGES = [
   "Simplified Chinese",
   "Traditional Chinese",
   "Urdu",
-  "Sindhi"
+  "Sindhi",
+  "Spanish",
+  "Arabic",
+  "Punjabi",
+  "Hindi",
+  "French",
+  "German",
+  "Portuguese",
+  "Turkish"
 ];
 
 const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
@@ -42,7 +58,15 @@ const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
   "Simplified Chinese": "简体中文",
   "Traditional Chinese": "繁體中文",
   "Urdu": "اردو",
-  "Sindhi": "سنڌي"
+  "Sindhi": "سنڌي",
+  "Spanish": "Español",
+  "Arabic": "العربية",
+  "Punjabi": "ਪੰਜਾਬੀ / پنبابی",
+  "Hindi": "हिन्दी",
+  "French": "Français",
+  "German": "Deutsch",
+  "Portuguese": "Português",
+  "Turkish": "Türkçe"
 };
 
 const UI_TRANSLATIONS: Record<string, any> = {
@@ -551,7 +575,7 @@ export default function App() {
       let fontName = 'helvetica';
       
       // Dynamic Font Loading for non-Latin scripts to avoid blank blocks or gibberish character mapping
-      if (selectedLanguage === "Sindhi" || selectedLanguage === "Urdu") {
+      if (selectedLanguage === "Sindhi" || selectedLanguage === "Urdu" || selectedLanguage === "Arabic" || selectedLanguage === "Punjabi") {
         try {
           const fontUrl = "./NotoSansArabic-Regular.ttf";
           const response = await fetch(fontUrl);
@@ -1221,21 +1245,27 @@ export default function App() {
                         />
                       </div>
                       <div className="max-h-60 overflow-y-auto py-2">
-                        {filteredLanguages.map(lang => (
-                          <button
-                            key={lang}
-                            onClick={() => {
-                              setSelectedLanguage(lang);
-                              setShowLangMenu(false);
-                            }}
-                            className={cn(
-                              "w-full text-left px-4 py-2.5 text-[11px] font-medium transition-colors hover:bg-slate-800",
-                              selectedLanguage === lang ? "text-emerald-400 bg-emerald-500/5" : "text-slate-400"
-                            )}
-                          >
-                            {lang}
-                          </button>
-                        ))}
+                        {filteredLanguages.map(lang => {
+                          const localizedName = LANGUAGE_DISPLAY_NAMES[lang] || lang;
+                          return (
+                            <button
+                              key={lang}
+                              onClick={() => {
+                                setSelectedLanguage(lang);
+                                setShowLangMenu(false);
+                              }}
+                              className={cn(
+                                "w-full text-left px-4 py-2.5 text-[11px] font-medium transition-colors hover:bg-slate-800 flex items-center justify-between",
+                                selectedLanguage === lang ? "text-emerald-400 bg-emerald-500/5" : "text-slate-400"
+                              )}
+                            >
+                              <span>{localizedName}</span>
+                              {lang !== localizedName && (
+                                <span className="text-[9px] opacity-40 font-mono italic">{lang}</span>
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                     </motion.div>
                   </>
