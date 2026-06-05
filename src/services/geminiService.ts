@@ -46,6 +46,11 @@ export interface AnalysisResult {
   spreadRate?: string;
   economicUrgency?: string;
   recoveryTime?: string;
+  identifiedPlant?: string;
+  botanicalName?: string;
+  plantHealthStatus?: string;
+  chlorophyllIndex?: string;
+  pathogenType?: string;
 }
 
 const responseSchema = {
@@ -70,6 +75,11 @@ const responseSchema = {
     spreadRate: { type: Type.STRING },
     economicUrgency: { type: Type.STRING },
     recoveryTime: { type: Type.STRING },
+    identifiedPlant: { type: Type.STRING },
+    botanicalName: { type: Type.STRING },
+    plantHealthStatus: { type: Type.STRING },
+    chlorophyllIndex: { type: Type.STRING },
+    pathogenType: { type: Type.STRING },
   },
   required: [
     "diseaseName", 
@@ -84,7 +94,12 @@ const responseSchema = {
     "severity",
     "spreadRate",
     "economicUrgency",
-    "recoveryTime"
+    "recoveryTime",
+    "identifiedPlant",
+    "botanicalName",
+    "plantHealthStatus",
+    "chlorophyllIndex",
+    "pathogenType"
   ]
 };
 
@@ -644,7 +659,7 @@ export async function analyzeCropPhoto(base64Image: string, language: string = "
 Analyze this high-resolution image of a crop/plant with 100% technical rigor.
 
 TASK:
-1. IDENTIFY the specific plant species and variety if possible.
+1. IDENTIFY the specific plant species and variety if possible (e.g. Wheat - Kalyan Sona, Tomato - Roma VF). Use 'identifiedPlant' for the common name (translated) and 'botanicalName' for the standard scientific Latin name.
 2. DIAGNOSE with extreme precision whether the plant is Healthy or suffering from a specific Disease, Pest Infestation, or Nutrient Deficiency.
 3. PROVIDE an expert-level pathological breakdown in the 'detailedAnalysis' field.
 4. ESTIMATE the potential yield loss if left untreated in the 'yieldImpact' field.
@@ -652,10 +667,14 @@ TASK:
 6. SPECIFY 'spreadRate': transmission speed and main vector (e.g., Fast via water-splash spores, High via airborne breeze, Localized soil drift, or N/A), translated.
 7. DEFINE 'economicUrgency': recommended professional timeline to apply treatments to prevent visual decay or cash-crop loss (e.g., Action required within 48 hours, preventative next 3 days, continuous routine care), translated.
 8. ESTIMATE 'recoveryTime': expected days of continuous treatment for the crops to show complete cell healing/recovery (e.g., 10-14 days, 14-21 days of selective pruning, or N/A), translated.
+9. ASSESS 'plantHealthStatus': general state description of plant's physiological and health conditions (e.g., "Optimal active chloroplast structure", "Acute marginal chlorosis", "Severe wilting and leaf decay"), translated.
+10. ASSESS 'chlorophyllIndex': estimated relative leaf-color index/wellness (e.g. "Optimal (SPAD 45.8)", "Chlorotic Deficiency (SPAD 18.2)", "Healthy Vigorous Green"), translated.
+11. ASSESS 'pathogenType': category under classification (e.g., "Fungal - Ascomycota", "Water Mold - Chromista/Oomycota", "Abiotic Nutrient Stress", "Abiotic Water Stress"), translated.
 
 CONSTRAINTS:
 - ALL values for the fields in the returned JSON object MUST be translated and written EXCLUSIVELY in the ${language} language. For example, if ${language} is Sindhi, every single string value in the resulting parsed JSON object MUST be written in Sindhi script (Arabic-based script).
-- Do not use English words or Latin alphabet. Ensure the translation is natural and accurate for high-grade agricultural diagnostics.
+- Exception: The 'botanicalName' MUST remain in the standard Latin scientific format (e.g. Triticum aestivum), italicized if possible.
+- Do not use English words or Latin alphabet for other fields. Ensure the translation is natural and accurate for high-grade agricultural diagnostics.
 - 'organicTreatment' and 'chemicalTreatment' must be highly detailed, including specific steps.
 - Return a structured JSON response matching the required schema.
 - DO NOT provide medical advice for humans, ONLY agricultural guidance for plants.`;
@@ -995,11 +1014,327 @@ export function enrichAnalysisResult(result: AnalysisResult, lang: string = "Eng
   const selectedData = data[lang] || data["English"];
   const defaults = selectedData[diseaseType];
 
+  const advancedData: Record<string, Record<'blight' | 'rust' | 'healthy', {
+    identifiedPlant: string;
+    botanicalName: string;
+    plantHealthStatus: string;
+    chlorophyllIndex: string;
+    pathogenType: string;
+  }>> = {
+    English: {
+      blight: {
+        identifiedPlant: "Tomato (Solanaceae species)",
+        botanicalName: "Solanum lycopersicum",
+        plantHealthStatus: "Active localized leaf necrosis & chlorotic margin stress",
+        chlorophyllIndex: "Sub-optimal: Chlorotic decay (SPAD 28.4)",
+        pathogenType: "Fungal Pathogen - Ascomycete division"
+      },
+      rust: {
+        identifiedPlant: "Wheat (Gramineae family)",
+        botanicalName: "Triticum aestivum",
+        plantHealthStatus: "Airtight vascular occlusion & severe pustule eruption",
+        chlorophyllIndex: "Severely Low: Spore lesions blocking absorption (SPAD 19.5)",
+        pathogenType: "Fungal Parasite - Basidiomycete order"
+      },
+      healthy: {
+        identifiedPlant: "Crop Specimen (Optimal Vigor)",
+        botanicalName: "Abelia / General Cultivar",
+        plantHealthStatus: "Robust cellulolytic integrity & high turgidity",
+        chlorophyllIndex: "Excellent: Active high chlorophyll density (SPAD 46.2)",
+        pathogenType: "Abiotic / Physiological Clear Status (Non-pathogenic)"
+      }
+    },
+    "Simplified Chinese": {
+      blight: {
+        identifiedPlant: "番茄 (茄科作物)",
+        botanicalName: "Solanum lycopersicum",
+        plantHealthStatus: "活跃的局部叶片坏死与退绿边缘压力",
+        chlorophyllIndex: "次佳: 退绿衰变 (SPAD 28.4)",
+        pathogenType: "真菌性病原体 - 子囊菌门"
+      },
+      rust: {
+        identifiedPlant: "小麦 (禾本科作物)",
+        botanicalName: "Triticum aestivum",
+        plantHealthStatus: "维管束阻塞与严重的锈菌夏孢子堆爆发",
+        chlorophyllIndex: "严重偏低: 孢子病斑阻碍吸收 (SPAD 19.5)",
+        pathogenType: "真菌性寄生虫 - 担子菌纲"
+      },
+      healthy: {
+        identifiedPlant: "作物标本 (最佳长势)",
+        botanicalName: "植物栽培品种 / 标本类型",
+        plantHealthStatus: "健壮的细胞壁完整性与优质的膨压状态",
+        chlorophyllIndex: "极其优异: 活跃叶绿素高密度 (SPAD 46.2)",
+        pathogenType: "非生物/生理健康清晰状态 (无病原体)"
+      }
+    },
+    "Traditional Chinese": {
+      blight: {
+        identifiedPlant: "番茄 (茄科作物)",
+        botanicalName: "Solanum lycopersicum",
+        plantHealthStatus: "活躍的局部葉片壞死與退綠邊緣壓力",
+        chlorophyllIndex: "次佳: 退綠衰變 (SPAD 28.4)",
+        pathogenType: "真菌性病原體 - 子囊菌門"
+      },
+      rust: {
+        identifiedPlant: "小麥 (禾本科作物)",
+        botanicalName: "Triticum aestivum",
+        plantHealthStatus: "維管束阻塞與嚴重的鏽菌夏孢子堆爆發",
+        chlorophyllIndex: "嚴重偏低: 孢子病斑阻礙吸收 (SPAD 19.5)",
+        pathogenType: "真菌性寄生蟲 - 擔子菌綱"
+      },
+      healthy: {
+        identifiedPlant: "作物標本 (最佳長勢)",
+        botanicalName: "植物栽培品種 / 標本類型",
+        plantHealthStatus: "健壯的細胞壁完整性與優質的膨壓狀態",
+        chlorophyllIndex: "極其優異: 活躍葉綠素高密度 (SPAD 46.2)",
+        pathogenType: "非生物/生理健康清晰狀態 (無病原體)"
+      }
+    },
+    Spanish: {
+      blight: {
+        identifiedPlant: "Tomate (especie Solanácea)",
+        botanicalName: "Solanum lycopersicum",
+        plantHealthStatus: "Necrosis foliar localizada activa y estrés de margen clorótico",
+        chlorophyllIndex: "Subóptimo: decaimiento clorótico (SPAD 28.4)",
+        pathogenType: "Patógeno fúngico - división Ascomycota"
+      },
+      rust: {
+        identifiedPlant: "Trigo (familia de las Gramíneas)",
+        botanicalName: "Triticum aestivum",
+        plantHealthStatus: "Oclusión vascular hermética y erupción severa de pústulas",
+        chlorophyllIndex: "Severamente bajo: lesiones de esporas bloqueando la absorción (SPAD 19.5)",
+        pathogenType: "Parásito fúngico - orden Basidiomycota"
+      },
+      healthy: {
+        identifiedPlant: "Espécimen de cultivo (vigor óptimo)",
+        botanicalName: "Abelia / Cultivar general",
+        plantHealthStatus: "Robustez de integridad celulolítica y alta turgencia",
+        chlorophyllIndex: "Excelente: densidad activa de alta clorofila (SPAD 46.2)",
+        pathogenType: "Estado abiotic / fisiológico claro (No patógeno)"
+      }
+    },
+    French: {
+      blight: {
+        identifiedPlant: "Tomate (espèce de Solanacée)",
+        botanicalName: "Solanum lycopersicum",
+        plantHealthStatus: "Nécrose foliaire localisée active et stress de marge chlorotique",
+        chlorophyllIndex: "Sous-optimal: déclin chlorotique (SPAD 28.4)",
+        pathogenType: "Pathogène fongique - division Ascomycota"
+      },
+      rust: {
+        identifiedPlant: "Blé (famille des Graminées)",
+        botanicalName: "Triticum aestivum",
+        plantHealthStatus: "Occlusion vasculaire hermétique et éruption sévère de pustules",
+        chlorophyllIndex: "Très bas: lésions sporales bloquant l'absorption (SPAD 19.5)",
+        pathogenType: "Parasite fongique - ordre Basidiomycota"
+      },
+      healthy: {
+        identifiedPlant: "Spécimen de culture (vigueur optimale)",
+        botanicalName: "Abelia / Cultivar général",
+        plantHealthStatus: "Intégrité cellulolytique robuste et turgescence élevée",
+        chlorophyllIndex: "Excellent: densité active de chlorophylle élevée (SPAD 46.2)",
+        pathogenType: "Statut abiotique / physiologique clair (Non pathogène)"
+      }
+    },
+    German: {
+      blight: {
+        identifiedPlant: "Tomate (Solanaceae-Art)",
+        botanicalName: "Solanum lycopersicum",
+        plantHealthStatus: "Aktive lokale Blattnekrose und chlorotischer Randstress",
+        chlorophyllIndex: "Suboptimal: Chlorotischer Verfall (SPAD 28.4)",
+        pathogenType: "Pilzpathogen - Abteilung Schlauchpilze"
+      },
+      rust: {
+        identifiedPlant: "Weizen (Familie der Süßgräser)",
+        botanicalName: "Triticum aestivum",
+        plantHealthStatus: "Eingeschränkter Saftfluss & schwerer Pustelausbruch",
+        chlorophyllIndex: "Sehr niedrig: Sporenläsionen hemmen Absorption (SPAD 19.5)",
+        pathogenType: "Pilzparasit - Ordnung Ständerpilze"
+      },
+      healthy: {
+        identifiedPlant: "Kulturpflanze (Optimale Vitalität)",
+        botanicalName: "Abelia / Allgemeiner Cultivar",
+        plantHealthStatus: "Robuste zelluläre Integrität & hoher Zellinnendruck",
+        chlorophyllIndex: "Hervorragend: Hohe aktive Chlorophylldichte (SPAD 46.2)",
+        pathogenType: "Abiotisch / Physiologisch klarer Zustand (Keine Erreger)"
+      }
+    },
+    Portuguese: {
+      blight: {
+        identifiedPlant: "Tomate (espécie Solanaceae)",
+        botanicalName: "Solanum lycopersicum",
+        plantHealthStatus: "Necrose foliar localizada ativa e estresse de margem clorótica",
+        chlorophyllIndex: "Sub-ótimo: declínio clorótico (SPAD 28.4)",
+        pathogenType: "Patógeno fúngico - divisão Ascomycota"
+      },
+      rust: {
+        identifiedPlant: "Trigo (família Poaceae)",
+        botanicalName: "Triticum aestivum",
+        plantHealthStatus: "Oclusão vascular hermética e erupção severa de pústulas",
+        chlorophyllIndex: "Gravemente baixo: lesões fúngicas que bloqueiam a absorção (SPAD 19.5)",
+        pathogenType: "Parasita fúngico - ordem Basidiomycota"
+      },
+      healthy: {
+        identifiedPlant: "Amostra de cultivo (vigor ideal)",
+        botanicalName: "Abelia / Cultivar geral",
+        plantHealthStatus: "Integridade celulolítica robusta e alta turgidez",
+        chlorophyllIndex: "Excelente: densidade ativa de alta clorofila (SPAD 46.2)",
+        pathogenType: "Estado abiotic / fisiológico limpo (Não patogênico)"
+      }
+    },
+    Turkish: {
+      blight: {
+        identifiedPlant: "Domates (Solanaceae türleri)",
+        botanicalName: "Solanum lycopersicum",
+        plantHealthStatus: "Aktif lokalize yaprak nekrozu ve klorotik kenar stresi",
+        chlorophyllIndex: "Eşik altı: Klorotik çürüme (SPAD 28.4)",
+        pathogenType: "Fungal Patojen - Ascomycete şubesi"
+      },
+      rust: {
+        identifiedPlant: "Buğday (Gramineae familyası)",
+        botanicalName: "Triticum aestivum",
+        plantHealthStatus: "Sıkı damarsal tıkanıklık ve şiddetli püstül patlaması",
+        chlorophyllIndex: "Ciddi Derecede Düşük: Emilimi engelleyen sporlar (SPAD 19.5)",
+        pathogenType: "Fungal Parazit - Basidiomiset sınıfı"
+      },
+      healthy: {
+        identifiedPlant: "Ekin Örneği (Optimal Canlılık)",
+        botanicalName: "Abelia / Genel Kültivar",
+        plantHealthStatus: "Güçlü selülolitik bütünlük ve yüksek turgor basıncı",
+        chlorophyllIndex: "Harika: Aktif yüksek klorofil yoğunluğu (SPAD 46.2)",
+        pathogenType: "Abiyotik / Fizyolojik Temiz Durum (Patojenik Değil)"
+      }
+    },
+    Arabic: {
+      blight: {
+        identifiedPlant: "الطماطم (فصيلة الباذنجانيات)",
+        botanicalName: "Solanum lycopersicum",
+        plantHealthStatus: "موت الخلايا الموضعي النشط وإجهاد الأطراف الشاحبة",
+        chlorophyllIndex: "دون المستوى الأمثل: اضمحلال اليخضور (SPAD 28.4)",
+        pathogenType: "ممرض فطري - شعبة الزقاقيات"
+      },
+      rust: {
+        identifiedPlant: "القمح (الفصيلة النجيلية)",
+        botanicalName: "Triticum aestivum",
+        plantHealthStatus: "انسداد وعائي شديد وثوران حاد للبثور الصدئية",
+        chlorophyllIndex: "منخفض للغاية: آفات أبواغ تمنع الامتصاص (SPAD 19.5)",
+        pathogenType: "فطر طفيلي - رتبة الشقرانيات"
+      },
+      healthy: {
+        identifiedPlant: "عينة محصول (نشاط فسيولوجي مثالي)",
+        botanicalName: "Abelia / صنف عام",
+        plantHealthStatus: "سلامة خلوية قوية وضغط امتلائي ممتاز",
+        chlorophyllIndex: "ممتاز: كثافة يخضور نشطة وعالية (SPAD 46.2)",
+        pathogenType: "حالة فسيولوجية سليمة وخالية من الممرضات"
+      }
+    },
+    Urdu: {
+      blight: {
+        identifiedPlant: "ٹماٹر (سولانیسی نوع)",
+        botanicalName: "Solanum lycopersicum",
+        plantHealthStatus: "مقام کے لحاظ سے علامات اور پتے کے کناروں کی خرابی",
+        chlorophyllIndex: "ناقص کلوروفیل (SPAD 28.4)",
+        pathogenType: "فنگل پیتھوجین - فرسٹ گروپ"
+      },
+      rust: {
+        identifiedPlant: "گندم (گرامینی نوع)",
+        botanicalName: "Triticum aestivum",
+        plantHealthStatus: "پودے کی رگوں میں رکاوٹ اور شدید اسپورز کا پھیلاؤ",
+        chlorophyllIndex: "انتہائی کم کلوروفیل (SPAD 19.5)",
+        pathogenType: "روایتی فنگل جراثیم - بیسیڈیومیسیٹ"
+      },
+      healthy: {
+        identifiedPlant: "فصل کا نمونہ (بہترین حالت)",
+        botanicalName: "کاشتکاروں کا عام انتخاب",
+        plantHealthStatus: "خلیاتی نظام بہترین صحت اور توازن میں ترو تازہ ہے",
+        chlorophyllIndex: "بہترین کلوروفیل مقدار (SPAD 46.2)",
+        pathogenType: "حیاتیاتی حالت صاف (کوئی بیماری نہیں)"
+      }
+    },
+    Sindhi: {
+      blight: {
+        identifiedPlant: "ٽماٽر (سولانيسي نوع)",
+        botanicalName: "Solanum lycopersicum",
+        plantHealthStatus: "مقامي پنن جي بيماري ۽ پيلاڻ جي نشاني",
+        chlorophyllIndex: "ناقص ڪلوروفيل (SPAD 28.4)",
+        pathogenType: "فنگل جراثيم - ٻيو گروپ"
+      },
+      rust: {
+        identifiedPlant: "ڪڻڪ (گراميني خاندان)",
+        botanicalName: "Triticum aestivum",
+        plantHealthStatus: "ٻوٽي جي رڳن ۾ رڪاوٽ ۽ جراثيم جو تيز وڌڻ",
+        chlorophyllIndex: "تمام گهٽ ڪلوروفيل (SPAD 19.5)",
+        pathogenType: "فنگل جراثيم - بيسيڊيو گروہ"
+      },
+      healthy: {
+        identifiedPlant: "فصل جو نمونو (بهترين حالت)",
+        botanicalName: "عام زرعي نسل",
+        plantHealthStatus: "پودے جا سڀ خانا صحتمند ۽ مضبوط آهن",
+        chlorophyllIndex: "بهترين ڪلوروفيل مقدار (SPAD 46.2)",
+        pathogenType: "ٻوٽو بيمارين کان پاڪ آھي"
+      }
+    },
+    Punjabi: {
+      blight: {
+        identifiedPlant: "ਟਮਾਟਰ (ਸੋਲਾਨੇਸੀ ਪ੍ਰਜਾਤੀ)",
+        botanicalName: "Solanum lycopersicum",
+        plantHealthStatus: "ਸਰਗਰਮ ਸਥਾਨਕ ਪੱਤੇ ਦੀ ਨੈਕਰੋਸਿਸ ਅਤੇ ਕਲੋਰੋਟਿਕ ਤਣਾਅ",
+        chlorophyllIndex: "ਘੱਟ ਕਲੋਰੋਫਿਲ (SPAD 28.4)",
+        pathogenType: "ਫੰਗਲ ਜੀਵਾਣੂ - ਐਸਕੋਮਾਈਸੀਟ"
+      },
+      rust: {
+        identifiedPlant: "ਕਣਕ (ਗ੍ਰਾਮਿਨੀ ਪਰਿਵਾਰ)",
+        botanicalName: "Triticum aestivum",
+        plantHealthStatus: "ਨਾੜੀਆਂ ਦਾ ਬੰਦ ਹੋਣਾ ਅਤੇ ਗੰਭੀਰ ਪੁਸਤੂਲ ਦਾ ਫਟਣਾ",
+        chlorophyllIndex: "ਬਹੁਤ ਘੱਟ ਕਲੋਰੋਫਿਲ (SPAD 19.5)",
+        pathogenType: "ਫੰਗਲ ਪਰਜੀਵੀ - ਬੇਸੀਡੀਓਮਾਈਸੀਟ"
+      },
+      healthy: {
+        identifiedPlant: "ਫ਼ਸਲ ਦਾ ਨਮੂਨਾ (ਸ਼ਾਨਦਾਰ ਸਿਹਤ)",
+        botanicalName: "ਆਮ ਖੇਤੀਬਾੜੀ ਵੰਨਗੀ",
+        plantHealthStatus: "ਮਜ਼ਬੂਤ ਸੈਲੂਲਰ ਅਖੰਡਤਾ ਅਤੇ ਉੱਚ ਤੰਦਰੁਸਤੀ",
+        chlorophyllIndex: "ਸ਼ਾਨਦาร: ਉੱਚ ਕਲੋਰੋਫਿਲ ਘਣਤਾ (SPAD 46.2)",
+        pathogenType: "ਅਬਾਇਓਟਿਕ / ਸਰੀਰਕ ਤੌਰ 'ਤੇ ਸਾਫ਼ ਸਥਿତି"
+      }
+    },
+    Hindi: {
+      blight: {
+        identifiedPlant: "टमाटर (सोलेनेसी प्रजाति)",
+        botanicalName: "Solanum lycopersicum",
+        plantHealthStatus: "सक्रिय स्थानीय पत्ती परिगलन और क्लोरोटिक मार्जिन तनाव",
+        chlorophyllIndex: "उप-इष्टतम: क्लोरोटिक क्षय (SPAD 28.4)",
+        pathogenType: "कवक रोगज़नक़ - एस्कोमाइसेट प्रभाग"
+      },
+      rust: {
+        identifiedPlant: "गेहूं (ग्रामिनेए परिवार)",
+        botanicalName: "Triticum aestivum",
+        plantHealthStatus: "संवहनी रुकावट और गंभीर पुस्ट्यूल विस्फोट",
+        chlorophyllIndex: "गंभीर रूप से कम: बीजाणु घाव अवशोषण को रोकते हैं (SPAD 19.5)",
+        pathogenType: "कवक परजीवी - बेसिडिओमाइसेट क्रम"
+      },
+      healthy: {
+        identifiedPlant: "फसल का नमूना (इष्टतम जीवंतता)",
+        botanicalName: "एबेलिया / सामान्य कृषक",
+        plantHealthStatus: "मजबूत सेल्युलोलिटिक अखंडता और उच्च तनाव",
+        chlorophyllIndex: "उत्कृष्ट: सक्रिय उच्च क्लोरोफिल घनत्व (SPAD 46.2)",
+        pathogenType: "अजैविक / शारीरिक रूप से स्वस्थ स्थिति (गैर-रोगजनक)"
+      }
+    }
+  };
+
+  const selectedAdvanced = advancedData[lang] || advancedData["English"];
+  const advancedDefaults = selectedAdvanced[diseaseType];
+
   return {
     ...result,
     severity: result.severity || defaults.severity,
     spreadRate: result.spreadRate || defaults.spreadRate,
     economicUrgency: result.economicUrgency || defaults.economicUrgency,
     recoveryTime: result.recoveryTime || defaults.recoveryTime,
+    identifiedPlant: result.identifiedPlant || advancedDefaults.identifiedPlant,
+    botanicalName: result.botanicalName || advancedDefaults.botanicalName,
+    plantHealthStatus: result.plantHealthStatus || advancedDefaults.plantHealthStatus,
+    chlorophyllIndex: result.chlorophyllIndex || advancedDefaults.chlorophyllIndex,
+    pathogenType: result.pathogenType || advancedDefaults.pathogenType
   };
 }

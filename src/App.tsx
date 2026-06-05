@@ -136,7 +136,12 @@ const UI_TRANSLATIONS: Record<string, any> = {
     footer: "AgroGenesis Intelligence System",
     speakResults: "Speak Results",
     detailedReport: "Detailed Pathological Report",
-    yieldImpact: "Estimated Yield Impact"
+    yieldImpact: "Estimated Yield Impact",
+    identifiedPlant: "Identified Crop Specimen",
+    botanicalName: "Botanical Scientific Code",
+    plantHealthStatus: "Overall Physiological Vigor",
+    chlorophyllIndex: "Chlorophyll Index (SPAD)",
+    pathogenType: "Pathological Classification"
   },
   "Simplified Chinese": {
     title: "农业创世纪",
@@ -204,7 +209,12 @@ const UI_TRANSLATIONS: Record<string, any> = {
     footer: "AgroGenesis 智能系统",
     speakResults: "朗读结果",
     detailedReport: "详细病理报告",
-    yieldImpact: "估计产量受损"
+    yieldImpact: "估计产量受损",
+    identifiedPlant: "已识别作物标本",
+    botanicalName: "植物学名代码",
+    plantHealthStatus: "整体生理活力状态",
+    chlorophyllIndex: "叶绿素相对含量指数 (SPAD)",
+    pathogenType: "病理因素归类"
   },
   "Traditional Chinese": {
     title: "農業創世紀",
@@ -272,7 +282,12 @@ const UI_TRANSLATIONS: Record<string, any> = {
     footer: "AgroGenesis 智能系統",
     speakResults: "朗讀結果",
     detailedReport: "詳細病理報告",
-    yieldImpact: "估計產量受損"
+    yieldImpact: "估計產量受損",
+    identifiedPlant: "已識別作物標本",
+    botanicalName: "植物學名代碼",
+    plantHealthStatus: "整體生理活力狀態",
+    chlorophyllIndex: "葉綠素相對含量指數 (SPAD)",
+    pathogenType: "病理因素歸類"
   },
   Urdu: {
     title: "ایگرو جینیسس",
@@ -340,7 +355,12 @@ const UI_TRANSLATIONS: Record<string, any> = {
     impact3Desc: "بصری ڈیٹا کو قابل عمل فصل کی پیشن گوئی اور پیداوار کی اصلاح میں تبدیل کریں۔",
     speakResults: "نتائج سنیں",
     detailedReport: "تفصیلی تشخیصی رپورٹ",
-    yieldImpact: "ممکنہ نقصان"
+    yieldImpact: "ممکنہ نقصان",
+    identifiedPlant: "شناخت شدہ فصل کا نمونہ",
+    botanicalName: "نباتیاتی سائنسی کوڈ",
+    plantHealthStatus: "پودے کی صحت کی حالت",
+    chlorophyllIndex: "کلوروفیل انڈیکس (SPAD)",
+    pathogenType: "پیتھولوجیکل درجہ بندی"
   },
   Sindhi: {
     title: "ايگرو جينيسسس",
@@ -408,7 +428,12 @@ const UI_TRANSLATIONS: Record<string, any> = {
     impact2Title: "خرچن ۾ بچت",
     impact2Desc: "فقط گهربل دوائن جي صحيح مقدار استعمال ڪري خرچ گھٽايو.",
     impact3Title: "زرعي تجزيا",
-    impact3Desc: "تصويري ڊيٽا جي بنياد تي بهتر فصل ۽ پيداوار جي اڳڪٿي حاصل ڪريو."
+    impact3Desc: "تصويري ڊيٽا جي بنياد تي بهتر فصل ۽ پيداوار جي اڳڪٿي حاصل ڪريو.",
+    identifiedPlant: "سڃاڻپ ٿيل فصل جو نمونو",
+    botanicalName: "نباتاتي سائنسي ڪوڊ",
+    plantHealthStatus: "ٻوٽي جي صحت جي حالت",
+    chlorophyllIndex: "ڪلوروفيل انڊيڪس (SPAD)",
+    pathogenType: "پيٿوجين جي درجه بندي"
   }
 };
 
@@ -666,6 +691,11 @@ export default function App() {
           lblPrimary: "Primary Diagnosis & Plant Name: ",
           lblConfidence: "AI Diagnosis Confidence Coefficient: ",
           lblSecState: "Security Pathological State: ",
+          lblIdentifiedPlant: "Identified Botanical Crop: ",
+          lblBotanicalName: "Scientific/Botanical Code: ",
+          lblPlantHealth: "Overall Physiological Health: ",
+          lblChlorophyll: "Chlorophyll Index (SPAD): ",
+          lblPathogenType: "Pathogen/Abiotic Classification: ",
           valNormal: "NORMAL PROTOCOL HEALTHY STABILIZED",
           valInfestation: "PATHO-AGENT CLASSIFIED INFESTATION",
           h2: "2. Diagnostic Analysis & Pathology Explanation",
@@ -697,6 +727,11 @@ export default function App() {
           lblPrimary: "首要诊断与植物名称: ",
           lblConfidence: "AI 诊断置信系数: ",
           lblSecState: "安全病理状态: ",
+          lblIdentifiedPlant: "已识别植物作物: ",
+          lblBotanicalName: "科学/植物学名: ",
+          lblPlantHealth: "作物整体生理健康: ",
+          lblChlorophyll: "叶绿素相对含量指数: ",
+          lblPathogenType: "病原体/非生物因素分类: ",
           valNormal: "正常状态: 健康、稳定",
           valInfestation: "病原体侵染状态: 确认感染",
           h2: "二、 病理诊断分析与详情说明",
@@ -728,6 +763,11 @@ export default function App() {
           lblPrimary: "首要診斷與植物名稱: ",
           lblConfidence: "AI 診斷置信係數: ",
           lblSecState: "安全病理狀態: ",
+          lblIdentifiedPlant: "已識別植物作物: ",
+          lblBotanicalName: "科學/植物學名: ",
+          lblPlantHealth: "作物整體生理健康: ",
+          lblChlorophyll: "葉綠素相對含量指數: ",
+          lblPathogenType: "病原體/非生物因素分類: ",
           valNormal: "正常狀態: 健康、穩定",
           valInfestation: "病原體侵染狀態: 確認感染",
           h2: "二、 病理診斷分析與詳情說明",
@@ -759,6 +799,11 @@ export default function App() {
           lblPrimary: "بنیادی تشخیص اور پودے کا نام: ",
           lblConfidence: "AI تشخیص اعتماد کا عنصر: ",
           lblSecState: "سیکورٹی پیتھولوجیکل اسٹیٹ: ",
+          lblIdentifiedPlant: "شناخت شدہ نباتیاتی فصل: ",
+          lblBotanicalName: "سائنسی/نباتیاتی کوڈ: ",
+          lblPlantHealth: "پودے کی مجموعی جسمانی صحت: ",
+          lblChlorophyll: "کلوروفيل انڈیکس (SPAD): ",
+          lblPathogenType: "پیتھوجین/غیر حیاتیاتی درجہ بندی: ",
           valNormal: "عام پروٹوکول صحت مند مستحکم",
           valInfestation: "پیتھو ایجنٹ درجہ بند انفیکشن",
           h2: "2. تشخیصی تجزیہ اور پیتھالوجی کی وضاحت",
@@ -790,6 +835,11 @@ export default function App() {
           lblPrimary: "بنيادي تشخيص ۽ ٻوٽي جو نالو: ",
           lblConfidence: "اي آئي تشخيص جي تصديق جو درجو: ",
           lblSecState: "فصل جي بيماري جو درجو: ",
+          lblIdentifiedPlant: "سڃاڻپ ٿيل ٻوٽي جو قسم: ",
+          lblBotanicalName: "سائنسي/نباتاتي ڪوڊ: ",
+          lblPlantHealth: "مجموعي جسماني ۽ صحتيابي حالت: ",
+          lblChlorophyll: "ڪلوروفيل انڊيڪس درجو (SPAD): ",
+          lblPathogenType: "بيماري/غير حياتياتي ورهاست: ",
           valNormal: "عام پروٽوڪول: ٻوٽو صحتمند ۽ محفوظ آھي",
           valInfestation: "حياتياتي جراثيم جو خطرناڪ حملو",
           h2: "2. بيماري جو تجزيو ۽ تفصيلي وضاحت",
@@ -1022,6 +1072,21 @@ export default function App() {
         isBold: true, 
         color: isHealthy ? emerald : [220, 38, 38] 
       });
+      if (result.identifiedPlant) {
+        writeText(`${labels.lblIdentifiedPlant || "Identified Botanical Crop: "}${result.identifiedPlant}`, { isBold: true });
+      }
+      if (result.botanicalName) {
+        writeText(`${labels.lblBotanicalName || "Scientific/Botanical Code: "}${result.botanicalName}`, { isItalic: true });
+      }
+      if (result.plantHealthStatus) {
+        writeText(`${labels.lblPlantHealth || "Overall Physiological Health: "}${result.plantHealthStatus}`);
+      }
+      if (result.chlorophyllIndex) {
+        writeText(`${labels.lblChlorophyll || "Chlorophyll Index (SPAD): "}${result.chlorophyllIndex}`);
+      }
+      if (result.pathogenType) {
+        writeText(`${labels.lblPathogenType || "Pathogen/Abiotic Classification: "}${result.pathogenType}`);
+      }
       y += 2.5;
 
       // 2. Diagnostics & Explanation
@@ -2114,6 +2179,39 @@ export default function App() {
                               {result.detailedAnalysis}
                             </p>
                           </div>
+
+                          {/* Botanical & Plant Identification Bento Segment */}
+                          {(result.identifiedPlant || result.botanicalName || result.plantHealthStatus || result.chlorophyllIndex || result.pathogenType) && (
+                            <div className="mb-8 grid grid-cols-1 md:grid-cols-5 gap-4">
+                              <div className="md:col-span-2 bg-slate-950/50 p-5 rounded-2xl border border-slate-800 flex flex-col justify-center">
+                                <span className="text-[10px] uppercase font-bold tracking-widest text-emerald-400 block mb-1">
+                                  {t(selectedLanguage, "identifiedPlant")}
+                                </span>
+                                <p className="text-base font-bold text-white">{result.identifiedPlant || "N/A"}</p>
+                                {result.botanicalName && (
+                                  <p className="text-xs font-mono italic text-emerald-500 mt-1">{result.botanicalName}</p>
+                                )}
+                              </div>
+                              <div className="bg-slate-950/50 p-5 rounded-2xl border border-slate-800 flex flex-col justify-center">
+                                <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block mb-1">
+                                  {t(selectedLanguage, "pathogenType")}
+                                </span>
+                                <p className="text-xs font-semibold text-slate-300">{result.pathogenType || "N/A"}</p>
+                              </div>
+                              <div className="bg-slate-950/50 p-5 rounded-2xl border border-slate-800 flex flex-col justify-center">
+                                <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block mb-1">
+                                  {t(selectedLanguage, "chlorophyllIndex")}
+                                </span>
+                                <p className="text-xs font-semibold text-slate-300">{result.chlorophyllIndex || "N/A"}</p>
+                              </div>
+                              <div className="bg-slate-950/50 p-5 rounded-2xl border border-slate-800 flex flex-col justify-center">
+                                <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block mb-1">
+                                  {t(selectedLanguage, "plantHealthStatus")}
+                                </span>
+                                <p className="text-xs font-semibold text-slate-300">{result.plantHealthStatus || "N/A"}</p>
+                              </div>
+                            </div>
+                          )}
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6 border-y border-slate-800">
                             <div>
