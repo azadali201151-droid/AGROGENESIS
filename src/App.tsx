@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Camera, RefreshCw, Leaf, ShieldAlert, HeartPulse, Sprout, CheckCircle2, AlertCircle, ChevronLeft, Globe, Search, Volume2, VolumeX, MessageSquare, Mic, History, SendHorizontal, Sparkles, User, Bot, X, Trash2, Download } from 'lucide-react';
-import { analyzeCropPhoto, AnalysisResult, chatWithAgriBot, getApiKey, saveUserApiKey, deleteUserApiKey } from './services/geminiService';
+import { analyzeCropPhoto, AnalysisResult, chatWithAgriBot, getApiKey, saveUserApiKey, deleteUserApiKey, getTranslatedMockResult, enrichAnalysisResult } from './services/geminiService';
 import { cn } from './lib/utils';
 import Markdown from 'react-markdown';
 import { jsPDF } from 'jspdf';
@@ -121,6 +121,8 @@ const UI_TRANSLATIONS: Record<string, any> = {
     moderate: "Moderate",
     spread: "Spread",
     standard: "Standard",
+    urgency: "Intervention Urgency",
+    recovery: "Recovery Estimate",
     processingPathogens: "Processing Pathogens...",
     awaitingResults: "Awaiting Results",
     searchLang: "Search language...",
@@ -187,6 +189,8 @@ const UI_TRANSLATIONS: Record<string, any> = {
     moderate: "中度",
     spread: "传播",
     standard: "标准",
+    urgency: "干预紧急度",
+    recovery: "预估康复时间",
     processingPathogens: "正在处理病原体...",
     awaitingResults: "等待结果",
     searchLang: "搜索语言...",
@@ -253,6 +257,8 @@ const UI_TRANSLATIONS: Record<string, any> = {
     moderate: "中度",
     spread: "傳播",
     standard: "標準",
+    urgency: "干預緊急度",
+    recovery: "預估康復時間",
     processingPathogens: "正在處理病原體...",
     awaitingResults: "等待結果",
     searchLang: "搜索語言...",
@@ -305,6 +311,8 @@ const UI_TRANSLATIONS: Record<string, any> = {
     moderate: "معتدل",
     spread: "پھیلاؤ",
     standard: "معیاری",
+    urgency: "علاج کی ضرورت",
+    recovery: "صحت یابی کا وقت",
     processingPathogens: "جراثیم کا تجزیہ ہو رہا ہے...",
     awaitingResults: "نتائج کا انتظار ہے",
     searchLang: "زبان تلاش کریں...",
@@ -371,6 +379,8 @@ const UI_TRANSLATIONS: Record<string, any> = {
     moderate: "معتدل",
     spread: "پکڙجڻ",
     standard: "معياري",
+    urgency: "علاج جي تڪڙائي",
+    recovery: "صحتيابي جو اندازو",
     processingPathogens: "بيمارين جا تجزيا ڪيا پيا وڃن...",
     awaitingResults: "نتيجن جو انتظار آهي",
     searchLang: "ٻولي ڳوليو...",
@@ -422,6 +432,12 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem("agroGenesis_selected_language", selectedLanguage);
+    if (result) {
+      const translated = getTranslatedMockResult(result.diseaseName, selectedLanguage);
+      if (translated) {
+        setResult(enrichAnalysisResult(translated, selectedLanguage));
+      }
+    }
   }, [selectedLanguage]);
 
   useEffect(() => {
@@ -565,6 +581,49 @@ export default function App() {
     if (!result || downloadingPDF) return;
     setDownloadingPDF(true);
 
+    const fetchFontBase64 = async (filename: string): Promise<string> => {
+      // Robust multi-path resolution strategy
+      const candidates = [
+        `${window.location.origin}/${filename}`,
+        new URL(filename, window.location.href).href,
+        `./${filename}`
+      ];
+      const uniqueCandidates = Array.from(new Set(candidates));
+      let lastError: any = null;
+
+      for (const url of uniqueCandidates) {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) continue;
+
+          // Prevent loading fallback HTML page as a font (which is a common source of corruption)
+          const contentType = response.headers.get("content-type") || "";
+          if (contentType.includes("html") || contentType.includes("text")) continue;
+
+          const arrayBuffer = await response.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          if (bytes.length < 1000) continue; // Must be a valid non-empty binary font file
+
+          // Safe, ultra-fast asynchronous browser-native base64 encoder
+          const blob = new Blob([bytes], { type: 'font/ttf' });
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const res = reader.result as string;
+              resolve(res.split(',')[1]);
+            };
+            reader.onerror = () => reject(new Error("FileReader failed"));
+            reader.readAsDataURL(blob);
+          });
+
+          return base64;
+        } catch (err) {
+          lastError = err;
+        }
+      }
+      throw lastError || new Error(`Failed to download and encode font: ${filename}`);
+    };
+
     try {
       const doc = new jsPDF({
         orientation: 'portrait',
@@ -577,19 +636,7 @@ export default function App() {
       // Dynamic Font Loading for non-Latin scripts to avoid blank blocks or gibberish character mapping
       if (selectedLanguage === "Sindhi" || selectedLanguage === "Urdu" || selectedLanguage === "Arabic" || selectedLanguage === "Punjabi") {
         try {
-          const fontUrl = "./NotoSansArabic-Regular.ttf";
-          const response = await fetch(fontUrl);
-          if (!response.ok) throw new Error("Font fetch failed");
-          const arrayBuffer = await response.arrayBuffer();
-          
-          let binary = '';
-          const bytes = new Uint8Array(arrayBuffer);
-          const len = bytes.byteLength;
-          for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(bytes[i]);
-          }
-          const fontBase64 = window.btoa(binary);
-          
+          const fontBase64 = await fetchFontBase64("NotoSansArabic-Regular.ttf");
           doc.addFileToVFS('NotoSansArabic.ttf', fontBase64);
           doc.addFont('NotoSansArabic.ttf', 'NotoSansArabic', 'normal');
           fontName = 'NotoSansArabic';
@@ -598,19 +645,7 @@ export default function App() {
         }
       } else if (selectedLanguage === "Simplified Chinese" || selectedLanguage === "Traditional Chinese") {
         try {
-          const fontUrl = "./ZCOOLXiaoWei.ttf";
-          const response = await fetch(fontUrl);
-          if (!response.ok) throw new Error("Font fetch failed");
-          const arrayBuffer = await response.arrayBuffer();
-          
-          let binary = '';
-          const bytes = new Uint8Array(arrayBuffer);
-          const len = bytes.byteLength;
-          for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(bytes[i]);
-          }
-          const fontBase64 = window.btoa(binary);
-          
+          const fontBase64 = await fetchFontBase64("ZCOOLXiaoWei.ttf");
           doc.addFileToVFS('ZCOOLXiaoWei.ttf', fontBase64);
           doc.addFont('ZCOOLXiaoWei.ttf', 'ChineseFont', 'normal');
           fontName = 'ChineseFont';
@@ -638,6 +673,10 @@ export default function App() {
           lblYield: "Economic Harvest / Yield Impact: ",
           lblSpeed: "Infection Speed Profile: ",
           valSpeed: "Standard distribution speed. Bio-organic barriers recommended immediately.",
+          lblSeverity: "Infection Severity Assessment: ",
+          lblSpreadRate: "Transmission & Vector Spread Rate: ",
+          lblUrgency: "Treatment Timeline & Economic Urgency: ",
+          lblRecovery: "Expected Crop Recovery Timeline: ",
           h4: "4. Recorded Phenotypic Symptoms & Indicators",
           h5: "5. Primary Treatment: Organic and Biological Protocol",
           h6: "6. Secondary Treatment: Synthetic Chemical Remediation",
@@ -665,6 +704,10 @@ export default function App() {
           lblYield: "经济作物损失 / 产量影响: ",
           lblSpeed: "感染扩散速度等级: ",
           valSpeed: "标准扩散速度。建议立即采取有机生物防治屏障。",
+          lblSeverity: "感染严重程度评估: ",
+          lblSpreadRate: "传播媒介与扩散速率: ",
+          lblUrgency: "治疗时间表与紧急程度: ",
+          lblRecovery: "预计作物恢复周期: ",
           h4: "四、 记录的植物表型症状和指标",
           h5: "五、 首轮治理方案: 有机和生物防治协议",
           h6: "六、 二轮治理方案: 防治类化学制剂干预",
@@ -692,6 +735,10 @@ export default function App() {
           lblYield: "經濟作物損失 / 產量影響: ",
           lblSpeed: "感染擴散速度等級: ",
           valSpeed: "標準擴散速度。建議立即採取有機生物防治屏障。",
+          lblSeverity: "感染嚴重程度評估: ",
+          lblSpreadRate: "傳播媒介與擴散速率: ",
+          lblUrgency: "治療時間表與緊急程度: ",
+          lblRecovery: "預計作物恢復週期: ",
           h4: "四、 記錄的植物表型症狀和指標",
           h5: "五、 首輪治理方案: 有機和生物防治協議",
           h6: "六、 二輪治理方案: 防治類化學制劑干預",
@@ -719,6 +766,10 @@ export default function App() {
           lblYield: "اقتصادی فصل / پیداوار کا اثر: ",
           lblSpeed: "انفیکشن پھیلنے کا پروفائل: ",
           valSpeed: "معیاری رفتار۔ فوری طور پر نامیاتی حیاتیاتی علاج تجویز کیا جاتا ہے۔",
+          lblSeverity: "انفیکشن کی شدت کا اندازہ: ",
+          lblSpreadRate: "پھیلاؤ کی شرح اور ویکٹر: ",
+          lblUrgency: "علاج کا ٹائم لائن اور اہمیت: ",
+          lblRecovery: "توقع ہے کہ صحت یابی کا وقت: ",
           h4: "4. درج کردہ علامات اور مشاہدہ شدہ اشارے",
           h5: "5. بنیادی علاج: نامیاتی اور حیاتیاتی طریقہ کار",
           h6: "6. ثانوی علاج: مصنوعی کیمیائی علاج",
@@ -746,6 +797,10 @@ export default function App() {
           lblYield: "اقتصادي نقصان ۽ پيداوار تي اثر: ",
           lblSpeed: "بيماري جي پکڙجڻ جي رفتار: ",
           valSpeed: "معياري رفتار. ترت ئي نامياتي طريقيڪار جي سفارش ڪئي وڃي ٿي.",
+          lblSeverity: "بيماري جي شدت جو جائزو: ",
+          lblSpreadRate: "بيماري جي پکڙجڻ جي رفتار ۽ ذريعا: ",
+          lblUrgency: "علاج ۽ معاشي تڪڙائي: ",
+          lblRecovery: "صحتيابي جو اندازي وقت: ",
           h4: "4. رڪارڊ ڪيل نشانيون ۽ ظاهر ٿيل ثبوت",
           h5: "5. بنيادي علاج: نامياتي ۽ حياتياتي حڪمت عملي",
           h6: "6. ثانوي علاج: ڪيميائي تدارڪاتي اپاءُ",
@@ -764,7 +819,19 @@ export default function App() {
         if (fontName === 'helvetica') {
           doc.setFont('helvetica', style);
         } else {
-          doc.setFont(fontName, 'normal');
+          try {
+            doc.setFont(fontName, 'normal');
+            
+            // Defensively safeguard active font validity & prevent "Cannot read properties of undefined (reading 'widths')"
+            const activeFont = doc.getFont();
+            if (!activeFont || !activeFont.metadata || !activeFont.metadata.widths) {
+              console.warn(`Font ${fontName} width metrics are missing. Falling back to default helvetica.`);
+              doc.setFont('helvetica', style);
+            }
+          } catch (e) {
+            console.error(`Error applying custom font ${fontName}, falling back to helvetica:`, e);
+            doc.setFont('helvetica', style);
+          }
         }
       };
 
@@ -965,7 +1032,10 @@ export default function App() {
       writeHeading(labels.h3);
       
       writeText(`${labels.lblYield}${result.yieldImpact}`, { isBold: true, color: [217, 119, 6] });
-      writeText(`${labels.lblSpeed}${labels.valSpeed}`);
+      writeText(`${labels.lblSeverity}${result.severity || labels.valNormal}`, { isBold: true });
+      writeText(`${labels.lblSpreadRate}${result.spreadRate || labels.valSpeed}`);
+      writeText(`${labels.lblUrgency}${result.economicUrgency || "N/A"}`, { isBold: true, color: [59, 130, 246] });
+      writeText(`${labels.lblRecovery}${result.recoveryTime || "N/A"}`);
       y += 2.5;
 
       // 4. Symptoms Listing
@@ -1146,9 +1216,23 @@ export default function App() {
             <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.3)] group-hover:scale-110 transition-transform">
               <Sprout className="text-slate-950" size={18} />
             </div>
-            <h1 className="text-lg font-bold tracking-tight text-white">
-              AGRO<span className="text-emerald-500 underline underline-offset-4 decoration-2">GENESIS</span>
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold tracking-tight text-white">
+                AGRO<span className="text-emerald-500 underline underline-offset-4 decoration-2">GENESIS</span>
+              </h1>
+              {/* Prominent Header-level language selection control */}
+              <div 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowLangMenu(!showLangMenu);
+                }}
+                className="flex items-center gap-1.5 px-2 py-0.5 md:px-2.5 md:py-1 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-full text-[10px] font-black text-emerald-400 hover:bg-slate-800 transition-all cursor-pointer shadow-[0_0_10px_rgba(16,185,129,0.1)] active:scale-95 shrink-0"
+                title="Select Language / ٻولي چونڊيو / زبان کا انتخاب"
+              >
+                <Globe size={11} className="text-emerald-400 shrink-0" />
+                <span className="font-mono text-[9px] uppercase tracking-wider hidden sm:inline">{LANGUAGE_DISPLAY_NAMES[selectedLanguage] || selectedLanguage}</span>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-4 md:gap-6">
@@ -1218,10 +1302,11 @@ export default function App() {
             <div className="relative">
               <button 
                 onClick={() => setShowLangMenu(!showLangMenu)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-[10px] font-bold text-slate-300 hover:border-emerald-500/50 transition-colors"
+                className="flex items-center gap-2 px-3.5 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-slate-200 hover:border-emerald-500/50 hover:bg-slate-800 transition-all shadow-lg active:scale-95 cursor-pointer"
+                title="Select Language / ٻولي چونڊيو / زبان کا انتخاب"
               >
-                <Globe size={12} className="text-emerald-400" />
-                <span className="hidden sm:inline">{selectedLanguage}</span>
+                <Globe size={15} className="text-emerald-400 shrink-0" />
+                <span className="font-semibold text-emerald-300">{LANGUAGE_DISPLAY_NAMES[selectedLanguage] || selectedLanguage}</span>
               </button>
 
               <AnimatePresence>
@@ -1308,9 +1393,44 @@ export default function App() {
                         <Camera size={20} />
                         {t(selectedLanguage, "startScan")}
                       </button>
-                      <button className="px-8 py-4 bg-slate-900 border border-slate-800 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all text-sm uppercase tracking-widest">
+                      <button className="px-8 py-4 bg-slate-900 border border-slate-800 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all text-sm uppercase tracking-widest flex items-center justify-center">
                         {t(selectedLanguage, "documentation")}
                       </button>
+                    </div>
+
+                    {/* Immersive Language Selector Toolbar */}
+                    <div className="mt-8 p-5 bg-slate-900/60 border border-slate-800/85 rounded-2xl backdrop-blur-md space-y-3.5 shadow-2xl">
+                      <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider">
+                        <Globe size={15} className="text-emerald-400 animate-pulse" />
+                        <span>System Language / ٻولي چونڊيو / زبان کا انتخاب</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {["English", "Urdu", "Sindhi", "Simplified Chinese", "Traditional Chinese", "Spanish", "Arabic"].map(lang => (
+                          <button
+                            key={lang}
+                            onClick={() => setSelectedLanguage(lang)}
+                            className={cn(
+                              "px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all border",
+                              selectedLanguage === lang 
+                                ? "bg-emerald-500 border-emerald-400 text-slate-950 font-bold shadow-[0_0_15px_rgba(16,185,129,0.3)] scale-105" 
+                                : "bg-slate-800/60 border-slate-700/80 text-slate-300 hover:border-slate-500 hover:bg-slate-800"
+                            )}
+                          >
+                            {LANGUAGE_DISPLAY_NAMES[lang] || lang}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => setShowLangMenu(!showLangMenu)}
+                          className={cn(
+                            "px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all border flex items-center gap-1",
+                            showLangMenu 
+                              ? "bg-slate-800 border-slate-500 text-white" 
+                              : "bg-slate-800/60 border-slate-700/80 text-slate-400 hover:border-slate-500 hover:text-white"
+                          )}
+                        >
+                          <span>More...</span>
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
 
@@ -1485,35 +1605,180 @@ export default function App() {
               {/* FAQ Section */}
               <div id="faqs" className="mt-40 space-y-20">
                 <div className="text-center space-y-4">
-                  <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight">Common <span className="text-emerald-500 italic">Queries</span></h2>
+                  <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight">
+                    {selectedLanguage === "Urdu" ? "عام سوالات" : 
+                     selectedLanguage === "Sindhi" ? "عام سوالات" :
+                     selectedLanguage === "Simplified Chinese" ? "常见科学问题" :
+                     selectedLanguage === "Traditional Chinese" ? "常見科學問題" :
+                     selectedLanguage === "Spanish" ? "Preguntas Frecuentes" :
+                     selectedLanguage === "French" ? "Questions Fréquentes" :
+                     selectedLanguage === "German" ? "Häufig Gestellte Fragen" :
+                     selectedLanguage === "Portuguese" ? "Perguntas Frequentes" :
+                     selectedLanguage === "Turkish" ? "Sıkça Sorulan Sorular" :
+                     selectedLanguage === "Arabic" ? "الأسئلة الشائعة" :
+                     selectedLanguage === "Punjabi" ? "ਆਮ ਸਵਾਲ" :
+                     selectedLanguage === "Hindi" ? "अक्सर पूछे जाने वाले प्रश्न" : "Common Queries"}
+                  </h2>
                   <div className="w-20 h-1 bg-emerald-500 mx-auto rounded-full" />
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
                   {[
                     {
-                      q: "How accurate is the AI diagnosis?",
-                      a: "Our neural networks are trained on over 1.2 million validated samples, achieving a confidence coefficient of 94.8% for major crops."
+                      q: selectedLanguage === "Urdu" ? "مصنوعی ذہانت (AI) کی تشخیص کس حد تک درست ہے؟" :
+                         selectedLanguage === "Sindhi" ? "اي آئي تشخيص ڪيتري حد تائين درست آھي؟" :
+                         selectedLanguage === "Simplified Chinese" ? "AI 诊断的准确率有多高？" :
+                         selectedLanguage === "Traditional Chinese" ? "AI 診斷的準確率有多高？" :
+                         selectedLanguage === "Spanish" ? "¿Qué tan preciso es el diagnóstico de IA?" :
+                         selectedLanguage === "French" ? "Quelle est la précision du diagnostic IA ?" :
+                         selectedLanguage === "German" ? "Wie genau ist die KI-Diagnose?" :
+                         selectedLanguage === "Portuguese" ? "Qual a precisão do diagnóstico por IA?" :
+                         selectedLanguage === "Turkish" ? "Yapay zeka teşhisi ne kadar hassas?" :
+                         selectedLanguage === "Arabic" ? "ما مدى دقة تشخيص الذكاء الاصطناعي؟" :
+                         selectedLanguage === "Punjabi" ? "AI ਜਾਂਚ ਕਿੰਨੀ ਸਹੀ ਹੈ?" :
+                         selectedLanguage === "Hindi" ? "AI निदान कितना सटीक है?" : "How accurate is the AI diagnosis?",
+                      a: selectedLanguage === "Urdu" ? "ہمارے نیٹ ورکس کو 12 لاکھ سے زائد نمونوں پر تربیت دی گئی ہے، جس نے بڑی فصلوں کے لیے 94.8% کا تناسب حاصل کیا ہے۔" :
+                         selectedLanguage === "Sindhi" ? "اسان جي نيٽ ورڪ کي 1.2 ملين کان وڌيڪ تصديق ٿيل نمونن تي تربيت ڏني وئي آهي، جنهن وڏين فصلن لاء 94.8٪ درستگي حاصل ڪئي آهي." :
+                         selectedLanguage === "Simplified Chinese" ? "我们的神经网络经过超过120万个验证样本的训练，对主要作物的诊断置信系数达到94.8％。" :
+                         selectedLanguage === "Traditional Chinese" ? "我們的神經網路經過超過120萬個驗證樣本的訓練，對主要作物的診斷置信係數達到94.8％。" :
+                         selectedLanguage === "Spanish" ? "Nuestras redes neuronales están entrenadas en más de 1.2 millones de muestras validadas, logrando un coeficiente de confianza del 94.8% para cultivos principales." :
+                         selectedLanguage === "French" ? "Nos réseaux neuronaux sont formés sur plus de 1,2 million d'échantillons validés, atteignant un coefficient de confiance de 94,8 % pour les principales cultures." :
+                         selectedLanguage === "German" ? "Unsere neuronalen Netze sind auf über 1,2 Millionen validierten Proben trainiert und erreichen eine Genauigkeit von 94,8 %." :
+                         selectedLanguage === "Portuguese" ? "Nossas redes organizacionais são treinadas em mais de 1.2 milhão de amostras validadas, atingindo 94.8% de confiança." :
+                         selectedLanguage === "Turkish" ? "Yapay sinir ağlarımız 1,2 milyondan fazla doğrulanmış numune üzerinde eğitilmiş olup ana mahsullerde %94,8 doğruluk elde etmiştir." :
+                         selectedLanguage === "Arabic" ? "تم تدريب شبكاتنا العصبية على أكثر من 1.2 مليون عينة تم التحقق منها، محققة معامل ثقة بنسبة 94.8٪ للمحاصيل الرئيسية." :
+                         selectedLanguage === "Punjabi" ? "ਸਾਡਾ ਨੈੱਟਵਰਕ 12 ਲੱਖ ਤੋਂ ਵੱਧ ਪ੍ਰਮਾਣਿਤ ਨਮੂਨਿਆਂ 'ਤੇ ਸਿਖਲਾਈ ਪ੍ਰਾਪਤ ਹੈ, ਜਿਸ ਨੇ ਮੁੱਖ ਫ਼ਸਲਾਂ ਲਈ 94.8% ਸਹੀ ਨਤੀਜੇ ਦਿੱਤੇ ਹਨ।" :
+                         selectedLanguage === "Hindi" ? "हमारे न्यूरल नेटवर्क 12 लाख से अधिक सत्यापित नमूनों पर प्रशिक्षित हैं, जिससे प्रमुख फसलों के लिए 94.8% विश्वास गुणांक प्राप्त होता है।" : "Our neural networks are trained on over 1.2 million validated samples, achieving a confidence coefficient of 94.8% for major crops."
                     },
                     {
-                      q: "Does it work for organic farming?",
-                      a: "Absolutely. Our primary focus is sustainable agriculture. Every diagnosis includes bio-organic protocol recommendations."
+                      q: selectedLanguage === "Urdu" ? "کیا یہ نامیاتی (آرگینک) فارمنگ کے لیے کام کرتا ہے؟" :
+                         selectedLanguage === "Sindhi" ? "ڇا هي نامياتي فارمنگ لاءِ ڪارائتو آهي؟" :
+                         selectedLanguage === "Simplified Chinese" ? "它适用于有机农业吗？" :
+                         selectedLanguage === "Traditional Chinese" ? "它適用於有機農業嗎？" :
+                         selectedLanguage === "Spanish" ? "¿Funciona para la agricultura orgánica?" :
+                         selectedLanguage === "French" ? "Cela fonctionne-t-il pour l'agriculture biologique ?" :
+                         selectedLanguage === "German" ? "Funktioniert es für den ökologischen Landbau?" :
+                         selectedLanguage === "Portuguese" ? "Funciona para agricultura orgânica?" :
+                         selectedLanguage === "Turkish" ? "Organik tarım için uygun mudur?" :
+                         selectedLanguage === "Arabic" ? "هل يعمل مع الزراعة العضوية؟" :
+                         selectedLanguage === "Punjabi" ? "ਕੀ ਇਹ ਜੈਵਿਕ ਖੇਤੀ ਲਈ ਕੰਮ ਕਰਦਾ ਹੈ?" :
+                         selectedLanguage === "Hindi" ? "क्या यह जैविक खेती के लिए काम करता है?" : "Does it work for organic farming?",
+                      a: selectedLanguage === "Urdu" ? "بالکل۔ ہماری بنیادی توجہ پائیدار زراعت پر ہے۔ ہر تشخیص میں حیاتیاتی اور نامیاتی علاج کی سفارشات شامل ہوتی ہیں۔" :
+                         selectedLanguage === "Sindhi" ? "بلاشبه. اسان جو بنيادي مقصد پائيدار زراعت آھي. هر تشخيص ۾ حياتياتي ۽ نامياتي علاج جي تجويز شامل هجي ٿي." :
+                         selectedLanguage === "Simplified Chinese" ? "当然。我们的首要关注点是可持续农业。每次诊断都包含详细的生物有机防治方案推荐。" :
+                         selectedLanguage === "Traditional Chinese" ? "當然。我們的首要關注點是可持續農業。每次診斷都包含詳細的生物有機防治方案推薦。" :
+                         selectedLanguage === "Spanish" ? "Absolutamente. Nuestro enfoque principal es la agricultura sostenible. Cada diagnóstico incluye recomendaciones de protocolos bio-orgánicos." :
+                         selectedLanguage === "French" ? "Absolument. Notre priorité est l'agriculture durable. Chaque diagnostic comprend des recommandations de protocoles bio-organiques." :
+                         selectedLanguage === "German" ? "Absolut. Unser Hauptaugenmerk liegt auf nachhaltiger Landwirtschaft. Jede Diagnose enthält Empfehlungen für biologische Protokolle." :
+                         selectedLanguage === "Portuguese" ? "Absolutamente. Nosso foco principal é a agricultura sustentável. Cada diagnóstico inclui protocolos bio-orgânicos detalhados." :
+                         selectedLanguage === "Turkish" ? "Kesinlikle. Temel odak noktamız sürdürülebilir tarımdır. Her teşhis, biyo-organik protokol önerilerini içerir." :
+                         selectedLanguage === "Arabic" ? "بالتأكيد. تركيزنا الأساسي هو الزراعة المستدامة. يتضمن كل تشخيص توصيات بروتوكول عضوي وحيوي." :
+                         selectedLanguage === "Punjabi" ? "ਬਿਲਕੁਲ। ਸਾਡਾ ਮੁੱਖ ਉਦੇਸ਼ ਟਿਕาਊ ਖੇਤੀਬਾੜੀ ਹੈ। ਹਰ ਨੁਸਖੇ ਵਿੱਚ ਜੈਵਿਕ ਇਲਾਜ ਸ਼ਾਮਲ ਹਨ।" :
+                         selectedLanguage === "Hindi" ? "बिल्कुल। हमारा मुख्य ध्यान टिकाऊ कृषि पर है। प्रत्येक निदान में जैव-जैविक उपचार प्रोटोकॉल की सिफारिशें शामिल हैं।" : "Absolutely. Our primary focus is sustainable agriculture. Every diagnosis includes bio-organic protocol recommendations."
                     },
                     {
-                      q: "Do I need a specialized camera?",
-                      a: "No. AgroGenesis is optimized for standard mobile lenses. Natural daylight and clear focus are all that's required."
+                      q: selectedLanguage === "Urdu" ? "کیا مجھے کسی خاص کیمرے کی ضرورت ہے؟" :
+                         selectedLanguage === "Sindhi" ? "ڇا مونکي ڪنهن خاص ڪيمرا جي ضرورت پوندي؟" :
+                         selectedLanguage === "Simplified Chinese" ? "我需要专业的相机吗？" :
+                         selectedLanguage === "Traditional Chinese" ? "我需要專業的相機嗎？" :
+                         selectedLanguage === "Spanish" ? "¿Necesito una cámara especializada?" :
+                         selectedLanguage === "French" ? "Ai-je besoin d'un appareil photo spécialisé ?" :
+                         selectedLanguage === "German" ? "Benötige ich eine spezielle Kamera?" :
+                         selectedLanguage === "Portuguese" ? "Preciso de uma câmera especializada?" :
+                         selectedLanguage === "Turkish" ? "Özel bir kameraya ihtiyacım var mı?" :
+                         selectedLanguage === "Arabic" ? "هل أحتاج إلى كاميرا متخصصة؟" :
+                         selectedLanguage === "Punjabi" ? "ਕੀ ਮੈਨੂੰ ਕਿਸੇ ਖਾਸ ਕੈਮਰੇ ਦੀ ਲੋੜ ਹੈ?" :
+                         selectedLanguage === "Hindi" ? "क्या मुझे एक विशेष कैमरे की आवश्यकता है?" : "Do I need a specialized camera?",
+                      a: selectedLanguage === "Urdu" ? "نہیں۔ ایگرو جینیسس عام موبائل کیمروں کے لیے موزوں بنایا گیا ہے۔ بس مناسب روشنی اور واضح تصویر کی ضرورت ہوتی ہے۔" :
+                         selectedLanguage === "Sindhi" ? "نه. ايگرو جينيسس عام موبائل ڪيمرا لينس لاء بھترين ڪم ڪري ٿو. رڳو قدرتي روشني ۽ صاف فوڪس گهربل آھي." :
+                         selectedLanguage === "Simplified Chinese" ? "不需要。AgroGenesis 已针对标准智能手机镜头进行了优化。只需充足的自然光和清晰的聚焦即可。" :
+                         selectedLanguage === "Traditional Chinese" ? "不需要。AgroGenesis 已針對標準智慧型手機鏡頭进行了優化。只需充足自然光和清晰的聚焦即可。" :
+                         selectedLanguage === "Spanish" ? "No. AgroGenesis está optimizado para lentes de teléfonos móviles estándar. Solo se requiere luz solar natural y un enfoque claro." :
+                         selectedLanguage === "French" ? "Non. AgroGenesis est optimisé pour les appareils photo mobiles de base. Une lumière naturelle et une mise au point nette suffisent." :
+                         selectedLanguage === "German" ? "Nein. AgroGenesis ist für Standard-Smartphone-Linsen optimiert. Natürliches Tageslicht und eine scharfe Fokussierung reichen aus." :
+                         selectedLanguage === "Portuguese" ? "Não. O AgroGenesis é otimizado para lentes de celulares padrão. Luz natural e foco nítido são suficientes." :
+                         selectedLanguage === "Turkish" ? "Hayır. AgroGenesis standart mobil mercekler için optimize edilmiştir. Doğal gün ışığı ve net odaklama yeterlidir." :
+                         selectedLanguage === "Arabic" ? "لا. تم تحسين AgroGenesis لعدسات الهواتف المحمولة القياسية. كل ما يتطلبه الأمر هو ضوء النهار الطبيعي والترخيص الواضح." :
+                         selectedLanguage === "Punjabi" ? "ਨਹੀਂ। ਐਗਰੋਜੈਨਿਸਿਸ ਮੋਬਾਈਲ ਕੈਮਰੇ ਨਾਲ ਵਧੀਆ ਕੰਮ ਕਰਦਾ ਹੈ। ਸੁਭਾਵਿਕ ਪ੍ਰਕਾਸ਼ ਅਤੇ ਸਾਫ ਤਸਵੀਰ ਹੀ ਕਾਫ਼ੀ ਹੈ।" :
+                         selectedLanguage === "Hindi" ? "नहीं। एग्रोजेनेसिस सामान्य मोबाइल लेंस के लिए अनुकूलित है। केवल प्राकृतिक दिन के उजाले और स्पष्ट फोकस की आवश्यकता है।" : "No. AgroGenesis is optimized for standard mobile lenses. Natural daylight and clear focus are all that's required."
                     },
                     {
-                      q: "How does 'Precision Intelligence' help?",
-                      a: "It prevents indiscriminate spraying by identifying exact pathogens, reducing resource waste by up to 60%."
+                      q: selectedLanguage === "Urdu" ? "درست انٹیلی جنس کس طرح مدد کرتی ہے؟" :
+                         selectedLanguage === "Sindhi" ? "درست ذھانت اسان جي ڪيئن مدد ڪري ٿي؟" :
+                         selectedLanguage === "Simplified Chinese" ? "“精准智能”如何提供帮助？" :
+                         selectedLanguage === "Traditional Chinese" ? "“精準智能”如何提供幫助？" :
+                         selectedLanguage === "Spanish" ? "¿Cómo ayuda la 'Inteligencia de Precisión'?" :
+                         selectedLanguage === "French" ? "Comment l'Intelligence de Précision aide-t-elle ?" :
+                         selectedLanguage === "German" ? "Wie hilft 'Präzisions-KI'?" :
+                         selectedLanguage === "Portuguese" ? "Como a 'Inteligência de Precisão' ajuda?" :
+                         selectedLanguage === "Turkish" ? "'Hassas Tarımsal Yapay Zekası' nasıl yardımcı olur?" :
+                         selectedLanguage === "Arabic" ? "كيف يساعد 'الذكاء الدقيق'؟" :
+                         selectedLanguage === "Punjabi" ? "ਸਹੀ ਖੇਤੀਬਾੜੀ ਬੁੱਧੀ ਕਿਵੇਂ ਮਦਦ ਕਰਦੀ ਹੈ?" :
+                         selectedLanguage === "Hindi" ? "'सटीक बुद्धिमत्ता' कैसे मदद करती है?" : "How does 'Precision Intelligence' help?",
+                      a: selectedLanguage === "Urdu" ? "یہ پیتھوجینز کی درست شناخت کر کے کیڑے مار ادویات کے بے جا چھڑکاؤ کو روکتی ہے، جس سے وسائل کا ضیاع 60 فیصد تک کم ہو جاتا ہے۔" :
+                         selectedLanguage === "Sindhi" ? "هي پيٿوجينز جي صحيح سڃاڻپ ڪري بلاوجہ ڪيميائي اسپري کي روڪي ٿو، جنهن سان ٻج ۽ پئسن جو نقصان 60 سيڪڙو تائين گھٽجي وڃي ٿو." :
+                         selectedLanguage === "Simplified Chinese" ? "它通过精准定位特定病原体来防止盲目滥喷农药，从而减少高达60％的资源和成本浪费。" :
+                         selectedLanguage === "Traditional Chinese" ? "它通過精準定位特定病原體來防止盲目濫噴農藥，從而減少高達60％的資源和成本浪費。" :
+                         selectedLanguage === "Spanish" ? "Evita la fumigación indiscriminada mediante la identificación de patógenos exactos, reduciendo el desperdicio de recursos hasta en un 60%." :
+                         selectedLanguage === "French" ? "Elle prévient la pulvérisation aveugle en ciblant le pathogène exact, réduisant le gaspillage de intrants jusqu'à 60 %." :
+                         selectedLanguage === "German" ? "Sie verhindert wahlloses Spritzen, indem genaue Erreger identifiziert werden, wodurch die Verschwendung von Ressourcen um bis zu 60 % reduziert wird." :
+                         selectedLanguage === "Portuguese" ? "Evita pulverizações desnecessárias ao identificar patógenos exatos, reduzindo o desperdício de insumos em até 60%." :
+                         selectedLanguage === "Turkish" ? "Hassas kimlik tespiti sunarak gereksiz tarım ilacı ilaçlamasını önler ve kaynak israfını %60'a varan oranda azaltır." :
+                         selectedLanguage === "Arabic" ? "يمنع الرش العشوائي للمبيدات من خلال تحديد جراثيم معينة، مما يقلل من هدر الموارد والمدخلات بنسبة تصل إلى 60٪." :
+                         selectedLanguage === "Punjabi" ? "ਇਹ ਸਹੀ ਰੋਗਾਣੂਆਂ ਦੀ ਪਛਾण ਕਰਕੇ ਕੀਟਨਾਸ਼ਕਾਂ ਦੀ ਬੇਲੋੜੀ ਵਰਤੋਂ ਰੋਕਦਾ ਹੈ, ਜਿਸ ਨਾਲ ਖਰਚਾ 60% ਤੱਕ ਘੱट ਜਾਂਦਾ ਹੈ।" :
+                         selectedLanguage === "Hindi" ? "यह सटीक रोगजनकों की पहचान करके अंधाधुंध छिड़काव को रोकता है, जिससे संसाधनों की बर्बादी 60% तक कम हो जाती है।" : "It prevents indiscriminate spraying by identifying exact pathogens, reducing resource waste by up to 60%."
                     },
                     {
-                      q: "What crops are currently supported?",
-                      a: "We currently support over 40 global crop varieties, emphasizing regional staples and nutritional security."
+                      q: selectedLanguage === "Urdu" ? "فی الوقت کن فصلوں کی معاونت دستیاب ہے؟" :
+                         selectedLanguage === "Sindhi" ? "هن وقت ڪهڙيون فصلون شامل آهن؟" :
+                         selectedLanguage === "Simplified Chinese" ? "目前支持哪些作物？" :
+                         selectedLanguage === "Traditional Chinese" ? "目前支持哪些作物？" :
+                         selectedLanguage === "Spanish" ? "¿Qué cultivos se apoyan actualmente?" :
+                         selectedLanguage === "French" ? "Quels types de cultures sont pris en charge ?" :
+                         selectedLanguage === "German" ? "Welche Kulturen werden derzeit unterstützt?" :
+                         selectedLanguage === "Portuguese" ? "Quais safras são suportadas atualmente?" :
+                         selectedLanguage === "Turkish" ? "Hangi mahsuller destekleniyor?" :
+                         selectedLanguage === "Arabic" ? "ما هي المحاصيل المدعومة حاليًا؟" :
+                         selectedLanguage === "Punjabi" ? "ਵਰਤਮਾਨ ਵਿੱਚ ਕਿਹੜੀਆਂ ਫ਼ਸਲਾਂ ਸ਼ਾਮਲ ਹਨ?" :
+                         selectedLanguage === "Hindi" ? "वर्तमान में कौन सी फसलें समर्थित हैं?" : "What crops are currently supported?",
+                      a: selectedLanguage === "Urdu" ? "ہم فی الحال 40 سے زائد عالمی فصلوں کی اقسام کی معلومات فراہم کرتے ہیں، جن میں زیادہ تر علاقائی خوراک کے وسائل شامل ہیں۔" :
+                         selectedLanguage === "Sindhi" ? "اسان 40 کان وڌيڪ عالمي فصلن جي قسمن تي مدد مهیا ڪريون ٿا، خاص ڪري علائقائي اهم زرعي پيداوار تي وڌيڪ ڌيان آھي." :
+                         selectedLanguage === "Simplified Chinese" ? "我们目前支持40多种全球主流作物，着重提供主粮及核心蔬菜作物的健康管护。" :
+                         selectedLanguage === "Traditional Chinese" ? "我們目前支持40多種全球主流作物，著重提供主糧及核心蔬菜作物的健康管護。" :
+                         selectedLanguage === "Spanish" ? "Actualmente apoyamos más de 40 variedades globales de cultivos, con énfasis en productos básicos regionales y seguridad alimentaria." :
+                         selectedLanguage === "French" ? "Nous prenons en charge plus de 40 variétés de cultures mondiales, en mettant l'accent sur la sécurité alimentaire régionale." :
+                         selectedLanguage === "German" ? "Wir unterstützen derzeit über 40 globale Kulturpflanzensorten, wobei der Schwerpunkt auf regionalen Grundnahrungsmitteln liegt." :
+                         selectedLanguage === "Portuguese" ? "Atualmente, oferecemos suporte para mais de 40 variedades globais de culturas, com foco na soberania alimentar." :
+                         selectedLanguage === "Turkish" ? "Bölgesel temel gıdalara ve beslenme güvenliğine odaklanarak 40'tan fazla küresel mahsul çeşidini destekliyoruz." :
+                         selectedLanguage === "Arabic" ? "ندعم حاليًا أكثر من 40 نوعًا من المحاصيل العالمية، مع التركيز على المحاصيل الأساسية الإقليمية والأمن الغذائي." :
+                         selectedLanguage === "Punjabi" ? "ਅਸੀਂ 40 ਤੋਂ ਵੱਧ ਮੁੱਖ ਫ਼ਸਲਾਂ ਦੀਆਂ ਕਿਸਮਾਂ ਦਾ ਸਮਰਥਨ ਕਰਦੇ ਹਾਂ, ਖਾਸ ਕਰਕੇ ਖੇਤਰੀ ਫ਼ਸਲਾਂ 'ਤੇ।" :
+                         selectedLanguage === "Hindi" ? "हम वर्तमान में 40 से अधिक फसलों का समर्थन करते हैं, जिसमें क्षेत्रीय मुख्य फसलों को प्राथमिकता दी जाती है।" : "We currently support over 40 global crop varieties, emphasizing regional staples and nutritional security."
                     },
                     {
-                      q: "Can I use it offline?",
-                      a: "Initial diagnostics require an active neural link (internet), but protocols can be saved to your local history for field use."
+                      q: selectedLanguage === "Urdu" ? "کیا میں اسے آف لائن استعمال کر سکتا ہوں؟" :
+                         selectedLanguage === "Sindhi" ? "ڇا مان آف لائن استعمال ڪري سگهان ٿو؟" :
+                         selectedLanguage === "Simplified Chinese" ? "我可以离线使用吗？" :
+                         selectedLanguage === "Traditional Chinese" ? "我可以離線使用嗎？" :
+                         selectedLanguage === "Spanish" ? "¿Puedo usarlo sin conexión?" :
+                         selectedLanguage === "French" ? "Puis-je l'utiliser hors ligne ?" :
+                         selectedLanguage === "German" ? "Kann ich es offline nutzen?" :
+                         selectedLanguage === "Portuguese" ? "Posso usar em modo offline?" :
+                         selectedLanguage === "Turkish" ? "Çevrimdışı kullanabilir miyim?" :
+                         selectedLanguage === "Arabic" ? "هل يمكنني استخدامه دون اتصال بالإنترنت؟" :
+                         selectedLanguage === "Punjabi" ? "ਕੀ ਮੈਂ ਇਸਨੂੰ ਔਫਲਾਈਨ ਵਰਤ ਸਕਦਾ ਹਾਂ?" :
+                         selectedLanguage === "Hindi" ? "क्या मैं ऑफ़ライン उपयोग कर सकता हूँ?" : "Can I use it offline?",
+                      a: selectedLanguage === "Urdu" ? "ابتدائی تشخیص کے لیے انٹرنیٹ درکار ہوتا ہے، لیکن تجویز کردہ طریقہ کار آپ کے لوکل ریکارڈ میں محفوظ ہو جاتے ہیں جنہیں فیلڈ میں بعد میں بھی آف لائن دیکھا جا سکتا ہے۔" :
+                         selectedLanguage === "Sindhi" ? "پهرين تشخيص لاء فعال انٽرنيٽ جي ضرورت هوندي آهي، پر علاج جو تجويزون لوڪل هسٽري ۾ محفوظ ڪري بعد ۾ فيلڊ ۾ آف لائن بنياد تي استعمال ڪري سگهجن ٿيون." :
+                         selectedLanguage === "Simplified Chinese" ? "首次智能诊断分析需要网络连接以传输图像，但其治疗方案可在历史记录中永久离线储存于本地，方便田间查看。" :
+                         selectedLanguage === "Traditional Chinese" ? "首次智能診斷分析需要網路連接以傳輸圖像，但其治療方案可在歷史記錄中永久離線儲存於本地，方便田間查看。" :
+                         selectedLanguage === "Spanish" ? "El diagnóstico inicial requiere una conexión activa, pero los protocolos se pueden guardar en su historial local para uso en el campo." :
+                         selectedLanguage === "French" ? "Les diagnostics initiaux nécessitent une connexion active, mais les protocoles recommandés peuvent être sauvegardés localement pour les champs." :
+                         selectedLanguage === "German" ? "Die erste Diagnose erfordert eine aktive Verbindung, Protokolle können jedoch in Ihrem lokalen Verlauf für den Einsatz auf dem Feld gespeichert werden." :
+                         selectedLanguage === "Portuguese" ? "A análise inicial requer conexão ativa, mas as diretrizes são salvas localmente para uso nas lavouras sem sinal." :
+                         selectedLanguage === "Turkish" ? "İlk teşhis için aktif internet bağlantısı gerekir ancak protokoller tarlada kullanım için yerel geçmişe kaydedilebilir." :
+                         selectedLanguage === "Arabic" ? "يتطلب التشخيص الأولي اتصالاً نشطًا بالإنترنت، ولكن يمكن حفظ سجل البروتokol وعرضها في الحقل دون اتصال." :
+                         selectedLanguage === "Punjabi" ? "ਪਹਿਲੀ ਜਾਂਚ ਲਈ ਖੁੱਲ੍ਹੇ ਇੰਟਰਨੈੱٹ ਦੀ ਲੋੜ ਹੁੰਦੀ ਹੈ, ਪਰ ਨੁਸਖੇ ਸਥਾਨਕ ਇਤਿਹਾਸ ਵਿੱਚ ਸੁਰੱਖਿਅਤ ਕੀਤੇ ਜਾ ਸਕਦੇ ਹਨ।" :
+                         selectedLanguage === "Hindi" ? "प्रारंभिक निदान के लिए इंटरनेट की आवश्यकता होती है, लेकिन उपचार पद्धतियों को क्षेत्र में ऑफ़लाइन उपयोग के लिए बचाया जा सकता है।" : "Initial diagnostics require an active neural link (internet), but protocols can be saved to your local history for field use."
                     }
                   ].map((faq, idx) => (
                     <motion.div 
@@ -1541,7 +1806,20 @@ export default function App() {
                   <div className="space-y-3">
                     <div className="space-y-1">
                       <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-4 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
-                        <span className="text-emerald-400 text-[11px] font-bold uppercase tracking-[0.5em]">Founder & Chief Architect</span>
+                        <span className="text-emerald-400 text-[11px] font-bold uppercase tracking-[0.5em]">
+                          {selectedLanguage === "Urdu" ? "بانی اور چیف آرکیٹیکٹ" :
+                           selectedLanguage === "Sindhi" ? "باني ۽ چيف آرڪيٽيڪٽ" :
+                           selectedLanguage === "Simplified Chinese" ? "创始人兼首席架构师" :
+                           selectedLanguage === "Traditional Chinese" ? "創始人兼首席架構師" :
+                           selectedLanguage === "Spanish" ? "Fundador y Arquitecto Principal" :
+                           selectedLanguage === "French" ? "Fondateur & Architecte en Chef" :
+                           selectedLanguage === "German" ? "Gründer & Chefarchitekt" :
+                           selectedLanguage === "Portuguese" ? "Fundador & Arquiteto Principal" :
+                           selectedLanguage === "Turkish" ? "Kurucu & Baş Mimar" :
+                           selectedLanguage === "Arabic" ? "المؤسس وكبير المهندسين" :
+                           selectedLanguage === "Punjabi" ? "ਸੰਸਥਾਪਕ ਅਤੇ ਮੁੱਖ ਆਰਕੀਟੈਕਟ" :
+                           selectedLanguage === "Hindi" ? "संस्थापक और मुख्य वास्तुकार" : "Founder & Chief Architect"}
+                        </span>
                       </div>
                       <p className="text-white text-5xl font-extrabold tracking-tighter italic drop-shadow-2xl">Azad Ali</p>
                     </div>
@@ -1555,8 +1833,46 @@ export default function App() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="max-w-2xl mx-auto px-6 py-12 md:py-16 h-full"
+              className="max-w-2xl mx-auto px-6 py-12 md:py-16 h-full space-y-6"
             >
+              {/* Extra highly-visible Language Selector at top of scanner */}
+              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl backdrop-blur-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+                <div className="flex items-center gap-2.5">
+                  <Globe size={18} className="text-emerald-400 animate-pulse" />
+                  <div>
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Select Scan Language</h4>
+                    <p className="text-[10px] text-slate-400">ٻولي چونڊيو / زبان کا انتخاب کریں</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {["English", "Urdu", "Sindhi", "Simplified Chinese", "Traditional Chinese", "Spanish", "Arabic"].map(lang => (
+                    <button
+                      key={lang}
+                      onClick={() => setSelectedLanguage(lang)}
+                      className={cn(
+                        "px-2.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer transition-all border",
+                        selectedLanguage === lang 
+                          ? "bg-emerald-500 border-emerald-400 text-slate-950 shadow-[0_0_10px_rgba(16,185,129,0.2)]" 
+                          : "bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-800"
+                      )}
+                    >
+                      {LANGUAGE_DISPLAY_NAMES[lang] || lang}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setShowLangMenu(!showLangMenu)}
+                    className={cn(
+                      "px-2.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer transition-all border",
+                      showLangMenu 
+                        ? "bg-slate-800 border-slate-600 text-white" 
+                        : "bg-slate-800/50 border-slate-700/50 text-slate-400 hover:text-white"
+                    )}
+                  >
+                    More...
+                  </button>
+                </div>
+              </div>
+
               <AnimatePresence mode="wait">
                 {!image ? (
                   <motion.div
@@ -1799,28 +2115,42 @@ export default function App() {
                             </p>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-6 border-y border-slate-800">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6 border-y border-slate-800">
                             <div>
                                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-500 mb-2">{t(selectedLanguage, "indicators")}</p>
-                               <div className="flex flex-wrap gap-2">
+                               <div className="flex flex-wrap gap-1.5">
                                  {result.symptoms.map((s, i) => (
-                                   <span key={i} className="text-xs px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-300">
+                                   <span key={i} className="text-xs px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-lg text-slate-300">
                                      {s}
                                    </span>
                                  ))}
                                </div>
                             </div>
-                            <div className="flex flex-col justify-end">
-                              <div className="flex items-center gap-6">
-                                 <div>
-                                   <p className="text-[10px] uppercase font-bold text-slate-500">{t(selectedLanguage, "severeness")}</p>
-                                   <p className={cn("font-bold", result.diseaseName === 'Healthy' ? "text-emerald-400" : "text-amber-500")}>{t(selectedLanguage, "moderate")}</p>
-                                 </div>
-                                 <div>
-                                   <p className="text-[10px] uppercase font-bold text-slate-500">{t(selectedLanguage, "spread")}</p>
-                                   <p className="text-red-400 font-bold">{t(selectedLanguage, "standard")}</p>
-                                 </div>
-                              </div>
+                            <div className="grid grid-cols-2 gap-4">
+                               <div>
+                                 <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">{t(selectedLanguage, "severeness")}</p>
+                                 <p className={cn("text-xs font-bold", (result.diseaseName || '').toLowerCase().includes('healthy') ? "text-emerald-400" : "text-amber-400")}>
+                                   {result.severity || t(selectedLanguage, "moderate")}
+                                 </p>
+                               </div>
+                               <div>
+                                 <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">{t(selectedLanguage, "spread")}</p>
+                                 <p className="text-xs text-red-400 font-bold">
+                                   {result.spreadRate || t(selectedLanguage, "standard")}
+                                 </p>
+                               </div>
+                               <div>
+                                 <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">{t(selectedLanguage, "urgency")}</p>
+                                 <p className="text-xs font-bold text-blue-400">
+                                   {result.economicUrgency || "N/A"}
+                                 </p>
+                               </div>
+                               <div>
+                                 <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">{t(selectedLanguage, "recovery")}</p>
+                                 <p className="text-xs font-bold text-purple-400">
+                                   {result.recoveryTime || "N/A"}
+                                 </p>
+                               </div>
                             </div>
                           </div>
                         </div>
@@ -1904,7 +2234,20 @@ export default function App() {
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse delay-75"></span>
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse delay-150"></span>
                 </div>
-                <span className="text-emerald-400 text-[11px] font-black uppercase tracking-[0.5em]">Founder & Chief Architect</span>
+                <span className="text-emerald-400 text-[11px] font-black uppercase tracking-[0.5em]">
+                  {selectedLanguage === "Urdu" ? "بانی اور چیف آرکیٹیکٹ" :
+                   selectedLanguage === "Sindhi" ? "باني ۽ چيف آرڪيٽيڪٽ" :
+                   selectedLanguage === "Simplified Chinese" ? "创始人兼首席架构师" :
+                   selectedLanguage === "Traditional Chinese" ? "創始人兼首席架構師" :
+                   selectedLanguage === "Spanish" ? "Fundador y Arquitecto Principal" :
+                   selectedLanguage === "French" ? "Fondateur & Architecte en Chef" :
+                   selectedLanguage === "German" ? "Gründer & Chefarchitekt" :
+                   selectedLanguage === "Portuguese" ? "Fundador & Arquiteto Principal" :
+                   selectedLanguage === "Turkish" ? "Kurucu & Baş Mimar" :
+                   selectedLanguage === "Arabic" ? "المؤسس وكبير المهندسين" :
+                   selectedLanguage === "Punjabi" ? "ਸੰਸਥਾਪਕ ਅਤੇ ਮੁੱਖ ਆਰਕੀਟੈਕਟ" :
+                   selectedLanguage === "Hindi" ? "संस्थापक और मुख्य वास्तुकार" : "Founder & Chief Architect"}
+                </span>
               </div>
               <p className="text-white text-5xl font-black tracking-tighter italic drop-shadow-2xl">Azad Ali</p>
             </div>
@@ -1913,12 +2256,36 @@ export default function App() {
         
         <div className="max-w-xl mx-auto space-y-10">
           <p className="text-slate-400 text-base leading-relaxed font-medium px-4 italic border-l-2 border-emerald-500/20 py-2">
-            Driving innovation in agricultural technology by applying advanced domain knowledge to solve real-world farming challenges. This platform represents a commitment to sustainable crop health through precision intelligence.
+            {selectedLanguage === "Urdu" ? "زرعی ٹیکنالوجی میں جدت پسندی کی لہر لانا اور حقیقی زمینی زرعی چیلنجز کو حل کرنے کے لیے جدید سائنسی علوم کا استعمال کرنا۔ یہ پلیٹ فارم درست معلومات کے ذریعے فصلوں کی پائیدار صحت کو یقینی بنانے کے پختہ عزم کا عکاس ہے۔" :
+             selectedLanguage === "Sindhi" ? "زرعي ٽيڪنالاجي ۾ جديد جدت آڻڻ ۽ هارين جي اصل چيلنجز کي حل ڪرڻ لاءِ ترقي يافته زرعي ذهن جو استعمال ڪرڻ. هي پليٽ فارم فصلن جي صحت ۽ بهتر پيداوار کي يقيني بڻائڻ جي هڪ پختي عزم جي علامت آهي." :
+             selectedLanguage === "Simplified Chinese" ? "应用先进的领域知识解决现实世界中的农业挑战，推动农业技术的创新。该平台代表了通过精准智能对可持续作物健康的承诺。" :
+             selectedLanguage === "Traditional Chinese" ? "應用先進的領域知識解決現實世界中的農業挑戰，推動農業技術的創新。該平台代表了通過精準智能對可持續作物健康的承諾。" :
+             selectedLanguage === "Spanish" ? "Impulsando la innovación en la tecnología agrícola mediante la aplicación de conocimientos avanzados para resolver desafíos de la vida real. Esta plataforma representa un compromiso con la salud sostenible de los cultivos." :
+             selectedLanguage === "French" ? "Stimuler l'innovation technologique agricole en appliquant des connaissances avancées pour résoudre les défis réels des fermiers. Cette plateforme représente un engagement envers la santé durable des cultures." :
+             selectedLanguage === "German" ? "Förderung von Innovationen in der Agrartechnologie durch die Anwendung fortgeschrittenen Fachwissens zur Lösung realer landwirtschaftlicher Herausforderungen. Diese Plattform steht für ein starkes Engagement für nachhaltige Pflanzengesundheit." :
+             selectedLanguage === "Portuguese" ? "Impulsionando a inovação na tecnologia agrícola ao aplicar conhecimento especializado para guiar agricultores em desafios reais do dia a dia. Compromisso total com a fitossanidade regenerativa." :
+             selectedLanguage === "Turkish" ? "Gerçek tarım sorunlarını çözmek amacıyla ileri düzey alan bilgisini uygulayarak tarım teknolojisinde yeniliklere öncülük ediyoruz. Bu platform, hassas zeka yoluyla sürdürülebilir mahsul sağlığına olan bağlılığı temsil etmektedir." :
+             selectedLanguage === "Arabic" ? "قيادة الابتكار في التكنولوجيا الزراعية من خلال تطبيق المعرفة المتقدمة لحل التحديات الزراعية الواقعية. تمثل هذه المنصة التزاماً بسلامة المحاصيل المستدامة من خلال الذكاء الدقيق." :
+             selectedLanguage === "Punjabi" ? "ਖੇਤੀਬਾੜੀ ਤਕਨਾਲੋਜੀ ਵਿੱਚ ਨਵੀਂ ਕ੍ਰਾਂਤੀ ਲਿਆਉਣਾ ਅਤੇ ਅਸਲ ਖੇਤੀ ਚੁਣੌਤੀਆਂ ਨੂੰ ਹੱਲ ਕਰਨ ਲਈ ਉੱਨਤ ਵਿਗਿਆਨ ਦੀ ਵਰਤੋਂ ਕਰਨਾ। ਇਹ ਪਲੇਟਫਾਰਮ ਟਿਕਾਊ ਫ਼ਸਲ ਸੁਰੱਖਿਆ ਪ੍ਰਤੀ ਵਚਨਬੱਧਤਾ ਹੈ।" :
+             selectedLanguage === "Hindi" ? "कृषि प्रौद्योगिकी में नवाचार को बढ़ावा देना और वास्तविक कृषि चुनौतियों का समाधान करने के लिए उन्नत वैज्ञानिक ज्ञान को लागू करना। यह मंच सटीक बुद्धिमत्ता के माध्यम से टिकाऊ फसल स्वास्थ्य के प्रति प्रतिबद्धता का प्रतिनिधित्व करता है।" : "Driving innovation in agricultural technology by applying advanced domain knowledge to solve real-world farming challenges. This platform represents a commitment to sustainable crop health through precision intelligence."}
           </p>
           
           <div className="flex flex-col items-center gap-6 pt-8">
             <div className="flex flex-col items-center gap-2">
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">Contact us on</p>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">
+                {selectedLanguage === "Urdu" ? "ہم سے رابطہ کریں" :
+                 selectedLanguage === "Sindhi" ? "اسان سان رابطو ڪريو" :
+                 selectedLanguage === "Simplified Chinese" ? "联系我们" :
+                 selectedLanguage === "Traditional Chinese" ? "聯繫我們" :
+                 selectedLanguage === "Spanish" ? "Contáctenos en" :
+                 selectedLanguage === "French" ? "Contactez-nous sur" :
+                 selectedLanguage === "German" ? "Kontaktieren Sie uns unter" :
+                 selectedLanguage === "Portuguese" ? "Fale conosco em" :
+                 selectedLanguage === "Turkish" ? "Bize ulaşın" :
+                 selectedLanguage === "Arabic" ? "اتصل بنا على" :
+                 selectedLanguage === "Punjabi" ? "ਸਾਡੇ ਨਾਲ ਸੰਪਰਕ ਕਰੋ" :
+                 selectedLanguage === "Hindi" ? "हमसे संपर्क करें" : "Contact us on"}
+              </p>
               <a 
                 href="mailto:azadali201151@gmail.com" 
                 className="group flex items-center gap-4 px-8 py-4 bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 rounded-2xl transition-all duration-300"
