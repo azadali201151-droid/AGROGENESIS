@@ -4,7 +4,7 @@ let aiInstance: GoogleGenAI | null = null;
 
 function getAI(): GoogleGenAI {
   if (!aiInstance) {
-    const apiKey = (typeof process !== "undefined" ? process.env.GEMINI_API_KEY : "") || (import.meta as any).env?.VITE_GEMINI_API_KEY || "";
+    const apiKey = (typeof process !== "undefined" ? process.env.GEMINI_API_KEY : "") || import.meta.env.VITE_GEMINI_API_KEY || "";
     aiInstance = new GoogleGenAI({ apiKey });
   }
   return aiInstance;
