@@ -382,7 +382,7 @@ const UI_TRANSLATIONS: Record<string, any> = {
 const t = (lang: string, key: string) => UI_TRANSLATIONS[lang]?.[key] || UI_TRANSLATIONS["English"][key];
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'landing' | 'home' | 'scanner'>('landing');
+  const [currentView, setCurrentView] = useState<'home' | 'scanner'>('home');
   const [image, setImage] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -1113,15 +1113,6 @@ export default function App() {
 
           <div className="flex items-center gap-4 md:gap-6">
             <button 
-              onClick={() => setCurrentView('landing')} 
-              className={cn(
-                "hidden sm:block text-xs font-bold uppercase tracking-widest transition-colors",
-                currentView === 'landing' ? "text-emerald-400" : "text-slate-500 hover:text-slate-300"
-              )}
-            >
-              Info
-            </button>
-            <button 
               onClick={() => setCurrentView('home')} 
               className={cn(
                 "text-xs font-bold uppercase tracking-widest transition-colors",
@@ -1211,143 +1202,7 @@ export default function App() {
 
       <main className="relative pt-16 h-full">
         <AnimatePresence mode="wait">
-          {currentView === 'landing' ? (
-            <motion.div
-              key="landing"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="min-h-screen"
-            >
-              {/* Hero Section */}
-              <section className="relative pt-24 pb-20 px-6 overflow-hidden">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-6xl h-full -z-10 bg-[radial-gradient(circle_at_50%_0%,#10b98115_0%,transparent_50%)]" />
-                <div className="max-w-4xl mx-auto text-center space-y-8">
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-widest"
-                  >
-                    <Sparkles size={14} />
-                    Next-Gen Agriculture
-                  </motion.div>
-                  
-                  <motion.h1 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="text-5xl md:text-8xl font-black tracking-tighter text-white uppercase italic leading-[0.9]"
-                  >
-                    AgroGenesis <span className="text-emerald-500 not-italic">Vision</span>
-                  </motion.h1>
-
-                  <motion.p 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="text-slate-400 text-lg md:text-xl font-medium max-w-2xl mx-auto leading-relaxed"
-                  >
-                    Driving innovation in agricultural technology by applying advanced domain knowledge to solve real-world farming challenges. This platform represents a commitment to sustainable crop health through precision intelligence.
-                  </motion.p>
-
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8"
-                  >
-                    <button
-                      onClick={() => setCurrentView('scanner')}
-                      className="group relative px-8 py-5 bg-emerald-500 text-slate-950 font-black uppercase tracking-[0.2em] text-xs rounded-2xl overflow-hidden hover:bg-white transition-all shadow-[0_20px_40px_rgba(16,185,129,0.2)] active:scale-95"
-                    >
-                      <span className="relative z-10 flex items-center gap-2">
-                        <Camera size={18} />
-                        Enter Scanner place
-                      </span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        const faqEl = document.getElementById('faqs');
-                        faqEl?.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                      className="px-8 py-5 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-black uppercase tracking-[0.2em] text-xs rounded-2xl transition-all"
-                    >
-                      Learn More
-                    </button>
-                  </motion.div>
-                </div>
-              </section>
-
-              {/* FAQ Section */}
-              <section id="faqs" className="py-32 px-6 bg-slate-900/10">
-                <div className="max-w-4xl mx-auto space-y-16">
-                  <div className="text-center space-y-4">
-                    <h2 className="text-4xl font-black text-white tracking-tighter uppercase italic">Common <span className="text-emerald-500 not-italic">Queries</span></h2>
-                    <div className="w-20 h-1 bg-emerald-500 mx-auto rounded-full" />
-                  </div>
-
-                  <div className="grid md:grid-cols-2 gap-6">
-                    {[
-                      {
-                        q: "How accurate is the AI diagnosis?",
-                        a: "Our neural networks are trained on over 1.2 million validated samples, achieving a confidence coefficient of 94.8% for major crops."
-                      },
-                      {
-                        q: "Does it work for organic farming?",
-                        a: "Absolutely. Our primary focus is sustainable agriculture. Every diagnosis includes bio-organic protocol recommendations."
-                      },
-                      {
-                        q: "Do I need a specialized camera?",
-                        a: "No. AgroGenesis is optimized for standard mobile lenses. Natural daylight and clear focus are all that's required."
-                      },
-                      {
-                        q: "How does 'Precision Intelligence' help?",
-                        a: "It prevents indiscriminate spraying by identifying exact pathogens, reducing resource waste by up to 60%."
-                      },
-                      {
-                        q: "What crops are currently supported?",
-                        a: "We currently support over 40 global crop varieties, emphasizing regional staples and nutritional security."
-                      },
-                      {
-                        q: "Can I use it offline?",
-                        a: "Initial diagnostics require an active neural link (internet), but protocols can be saved to your local history for field use."
-                      }
-                    ].map((faq, idx) => (
-                      <motion.div 
-                        key={idx}
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: idx * 0.1 }}
-                        className="p-8 rounded-3xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/30 transition-all group"
-                      >
-                        <h3 className="text-white font-black text-lg mb-3 flex gap-3 italic">
-                          <span className="text-emerald-500 not-italic">Q.</span> {faq.q}
-                        </h3>
-                        <p className="text-slate-400 text-sm leading-relaxed font-medium">
-                          {faq.a}
-                        </p>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              </section>
-
-              {/* Founder Signature (Reduced) */}
-              <footer className="w-full max-w-4xl mx-auto px-6 pt-16 pb-24 text-center mt-20 border-t border-white/5 bg-gradient-to-t from-emerald-500/[0.02] to-transparent">
-                <div className="flex flex-col items-center gap-6 mb-8">
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-4 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
-                        <span className="text-emerald-400 text-[11px] font-black uppercase tracking-[0.5em]">Founder & Chief Architect</span>
-                      </div>
-                      <p className="text-white text-5xl font-black tracking-tighter italic drop-shadow-2xl">Azad Ali</p>
-                    </div>
-                  </div>
-                </div>
-              </footer>
-            </motion.div>
-          ) : currentView === 'home' ? (
+          {currentView === 'home' ? (
             <motion.div 
               key="home"
               initial={{ opacity: 0, scale: 0.98 }}
@@ -1550,6 +1405,73 @@ export default function App() {
                   </div>
                 </div>
               </div>
+
+              {/* FAQ Section */}
+              <div id="faqs" className="mt-40 space-y-20">
+                <div className="text-center space-y-4">
+                  <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight">Common <span className="text-emerald-500 italic">Queries</span></h2>
+                  <div className="w-20 h-1 bg-emerald-500 mx-auto rounded-full" />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  {[
+                    {
+                      q: "How accurate is the AI diagnosis?",
+                      a: "Our neural networks are trained on over 1.2 million validated samples, achieving a confidence coefficient of 94.8% for major crops."
+                    },
+                    {
+                      q: "Does it work for organic farming?",
+                      a: "Absolutely. Our primary focus is sustainable agriculture. Every diagnosis includes bio-organic protocol recommendations."
+                    },
+                    {
+                      q: "Do I need a specialized camera?",
+                      a: "No. AgroGenesis is optimized for standard mobile lenses. Natural daylight and clear focus are all that's required."
+                    },
+                    {
+                      q: "How does 'Precision Intelligence' help?",
+                      a: "It prevents indiscriminate spraying by identifying exact pathogens, reducing resource waste by up to 60%."
+                    },
+                    {
+                      q: "What crops are currently supported?",
+                      a: "We currently support over 40 global crop varieties, emphasizing regional staples and nutritional security."
+                    },
+                    {
+                      q: "Can I use it offline?",
+                      a: "Initial diagnostics require an active neural link (internet), but protocols can be saved to your local history for field use."
+                    }
+                  ].map((faq, idx) => (
+                    <motion.div 
+                      key={idx}
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: idx * 0.1 }}
+                      className="p-8 rounded-3xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/30 transition-all group"
+                    >
+                      <h3 className="text-white font-bold text-lg mb-3 flex gap-3 italic">
+                        <span className="text-emerald-500 not-italic">Q.</span> {faq.q}
+                      </h3>
+                      <p className="text-slate-400 text-sm leading-relaxed font-semibold">
+                        {faq.a}
+                      </p>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Founder Signature (Reduced) */}
+              <footer className="w-full max-w-4xl mx-auto px-6 pt-16 pb-24 text-center mt-40 border-t border-white/5 bg-gradient-to-t from-emerald-500/[0.02] to-transparent">
+                <div className="flex flex-col items-center gap-6 mb-8">
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-4 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+                        <span className="text-emerald-400 text-[11px] font-bold uppercase tracking-[0.5em]">Founder & Chief Architect</span>
+                      </div>
+                      <p className="text-white text-5xl font-extrabold tracking-tighter italic drop-shadow-2xl">Azad Ali</p>
+                    </div>
+                  </div>
+                </div>
+              </footer>
             </motion.div>
           ) : (
             <motion.div
