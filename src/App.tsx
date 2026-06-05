@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Camera, RefreshCw, Leaf, ShieldAlert, HeartPulse, Sprout, CheckCircle2, AlertCircle, ChevronLeft, Globe, Search, Volume2, VolumeX, MessageSquare, Mic, History, SendHorizontal, Sparkles, User, Bot, X, Trash2 } from 'lucide-react';
+import { Camera, RefreshCw, Leaf, ShieldAlert, HeartPulse, Sprout, CheckCircle2, AlertCircle, ChevronLeft, Globe, Search, Volume2, VolumeX, MessageSquare, Mic, History, SendHorizontal, Sparkles, User, Bot, X, Trash2, Download } from 'lucide-react';
 import { analyzeCropPhoto, AnalysisResult, chatWithAgriBot } from './services/geminiService';
 import { cn } from './lib/utils';
 import Markdown from 'react-markdown';
+import { jsPDF } from 'jspdf';
 
 
 interface ChatMessage {
@@ -22,32 +23,27 @@ interface ScanHistory {
 
 const LANG_CODES: Record<string, string> = {
   English: 'en-US',
-  Hindi: 'hi-IN',
-  Bengali: 'bn-BD',
-  Spanish: 'es-ES',
-  French: 'fr-FR',
-  Arabic: 'ar-SA',
-  Mandarin: 'zh-CN',
+  "Simplified Chinese": 'zh-CN',
+  "Traditional Chinese": 'zh-TW',
   Urdu: 'ur-PK',
-  Portuguese: 'pt-BR',
-  Russian: 'ru-RU',
-  Japanese: 'ja-JP',
-  German: 'de-DE',
-  Punjabi: 'pa-IN',
-  Marathi: 'mr-IN',
-  Telugu: 'te-IN',
-  Tamil: 'ta-IN',
-  Vietnamese: 'vi-VN',
-  Turkish: 'tr-TR',
-  Italian: 'it-IT',
-  Thai: 'th-TH',
-  Hausa: 'ha-NE',
-  Indonesian: 'id-ID'
+  Sindhi: 'sd-PK'
 };
 
 const LANGUAGES = [
-  "English", "Hindi", "Bengali", "Spanish", "French", "Arabic", "Mandarin", "Urdu", "Portuguese", "Russian", "Japanese", "German", "Punjabi", "Marathi", "Telugu", "Tamil", "Vietnamese", "Turkish", "Italian", "Thai", "Hausa", "Indonesian"
+  "English",
+  "Simplified Chinese",
+  "Traditional Chinese",
+  "Urdu",
+  "Sindhi"
 ];
+
+const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
+  "English": "English",
+  "Simplified Chinese": "简体中文",
+  "Traditional Chinese": "繁體中文",
+  "Urdu": "اردو",
+  "Sindhi": "سنڌي"
+};
 
 const UI_TRANSLATIONS: Record<string, any> = {
   English: {
@@ -116,391 +112,7 @@ const UI_TRANSLATIONS: Record<string, any> = {
     detailedReport: "Detailed Pathological Report",
     yieldImpact: "Estimated Yield Impact"
   },
-  Hindi: {
-    title: "एग्रोजेनेसिस",
-    home: "होम",
-    scanner: "डायग्नोस्टिक स्कैनर",
-    futureFarming: "खेती का भविष्य",
-    heroTitle: "अपनी फसल",
-    heroTitleItalic: "बचाएं।",
-    heroSubtitle: "अपनी फसलों के लिए तत्काल एआई निदान तैनात करें। सेकंड में बीमारियों का पता लगाएं, जैविक उपचार प्रोटोकॉल प्राप्त करें, और फैलने से पहले विफलता को रोकें।",
-    startScan: "विज़न स्कैन शुरू करें",
-    documentation: "दस्तावेज़ीकरण",
-    detectionRate: "सটিকতা दर",
-    cropsSupported: "समर्थित फसलें",
-    scanningPathogens: "रोगजनकों के लिए स्कैनिंग",
-    advancedVision: "उन्नत जैविक दृष्टि",
-    diagnosisReady: "निदान तैयार है",
-    organicCare: "जैविक देखभाल",
-    organicCareDesc: "आपकी फसल के फेनोटाइप के लिए विशेष रूप से तैयार किए गए विस्तृत, चरण-दर-चरण जैविक उपचार प्रोटोकॉल।",
-    diseaseShield: "रोग कवच",
-    diseaseShieldDesc: "उन्नत कृषि बुद्धिमत्ता द्वारा संचालित आत्मविश्वास स्कोर के साथ कीटों और जैविक खतरों की जल्दी पहचान करें।",
-    sustainabilityTitle: "स्थिरता",
-    sustainabilityDesc: "भविष्य की पैदावार में सुधार करने और अपने खेतों में बीमारी की पुनरावृत्ति को स्थायी रूप से रोकने के लिए विशेषज्ञ देखभाल युक्तियाँ प्राप्त करें।",
-    uploadTitle: "विश्लेषण शुरू करें",
-    uploadDesc: "पत्ती या फसल का नमूना अपलोड करें",
-    symptoms: "दृश्य लक्षण",
-    organic: "जैविक प्रोटोकॉल",
-    chemical: "रासायनिक ओवरराइड",
-    prevention: "निवारक उपाय",
-    syncNew: "नया स्कैन सिंक करें",
-    indicators: "पाए गए संकेतक",
-    confidence: "आत्मविश्वास गुणांक",
-    preventionStrategy: "रोकथाम की रणनीति",
-    sustainability: "सतत खेती सलाह",
-    biologicalDiagnosis: "जैविक निदान",
-    severeness: "गंभीरता",
-    moderate: "मध्यम",
-    spread: "फैलाव",
-    standard: "मानक",
-    processingPathogens: "रोगजनकों का विश्लेषण...",
-    awaitingResults: "परिणामों की प्रतीक्षा है",
-    searchLang: "भाषा खोजें...",
-    focusPrecision: "फोकस परिशुद्धता",
-    focusDesc: "विशिष्ट क्षय क्षेत्रों का विश्लेषण करें",
-    l0Diagnostic: "L0 डायग्नोस्टिक",
-    realtimeCheck: "रीयल-टाइम रोगजनक जांच",
-    retry: "पुनः प्रयास करें",
-    failed: "छवि का विश्लेषण करने में विफल। कृपया स्पष्ट फोटो के साथ पुनः प्रयास करें।",
-    mockDiagnosis: "सेप्टोरिया लीफ स्पॉट का पता चला",
-    footer: "एग्रोजेनेसिस इंटेलिजेंस सिस्टम",
-    speakResults: "परिणाम सुनें",
-    detailedReport: "विस्तृत रोग रिपोर्ट",
-    yieldImpact: "अनुमानित उपज प्रभाव",
-    howItWorks: "यह कैसे काम करता है",
-    step1Title: "विजन सेटअप",
-    step1Desc: "किसी بھی موبાઈल डिवाइस का उपयोग करके प्रभावित पौधे के क्षेत्र की उच्च-रिज़ॉल्यूशन छवि कैप्चर करें।",
-    step2Title: "तंत्रिका विश्लेषण",
-    step2Desc: "हमारा L0 न्यूरल नेटवर्क 150 से अधिक अद्वितीय रोगजनकों और चयापचय कमियों के लिए स्कैन करता है।",
-    step3Title: "प्रोटोकॉल परिनियोजन",
-    step3Desc: "अपनी मिट्टी के प्रकार के अनुरूप तत्काल, स्थानीयकृत जैविक और रासायनिक उपचार प्रोटोकॉल प्राप्त करें।",
-    impactTitle: "रणनीतिक प्रभाव",
-    impact1Title: "खाद्य सुरक्षा",
-    impact1Desc: "स्थानीयकृत फसल की बर्बादी को रोकें और क्षेत्रीय खाद्य आपूर्ति को स्थिर करें।",
-    impact2Title: "आर्थिक लचीलापन",
-    impact2Desc: "ठीक वही लगाकर अपनी इनपुट लागत कम करें जिसकी आपकी फसलों को ज़रूरत है, ठीक उसी समय जब उन्हें इसकी ज़रूरत है।",
-    impact3Title: "डेटा इंटेलिजेंस",
-    impact3Desc: "दृश्य डेटा को कार्रवाई योग्य फसल पूर्वानुमान और उपज अनुकूलन में बदलें।"
-  },
-  Spanish: {
-    title: "AGROGÉNESIS",
-    home: "Inicio",
-    scanner: "Escáner de Diagnóstico",
-    futureFarming: "Futuro de la Agricultura",
-    heroTitle: "RESCATA TU",
-    heroTitleItalic: "COSECHA.",
-    heroSubtitle: "Implementa diagnósticos instantáneos de IA para tus cultivos. Detecta enfermedades en segundos, obtén protocolos de tratamiento orgánico y evita fallas antes de que se propaguen.",
-    startScan: "Iniciar Escaneo de Visión",
-    documentation: "Documentación",
-    detectionRate: "Tasa de detección",
-    cropsSupported: "Cultivos soportados",
-    scanningPathogens: "ESCANEANDO PATÓGENOS",
-    advancedVision: "Visión Biológica Avanzada",
-    diagnosisReady: "Diagnóstico Listo",
-    organicCare: "Cuidado Orgánico",
-    organicCareDesc: "Protocolos de tratamiento orgánico detallados, paso a paso, generados específicamente para el fenotipo de su cultivo.",
-    diseaseShield: "Escudo de Enfermedades",
-    diseaseShieldDesc: "Identifique plagas y amenazas biológicas temprano con puntajes de confianza impulsados por inteligencia agrícola avanzada.",
-    sustainabilityTitle: "Sostenibilidad",
-    sustainabilityDesc: "Obtenga consejos de expertos para mejorar los rendimientos futuros y prevenir de manera sostenible la recurrencia de enfermedades en sus campos.",
-    uploadTitle: "Iniciar Análisis",
-    uploadDesc: "Sube una sección transversal o muestra de hoja",
-    symptoms: "Síntomas Visibles",
-    organic: "Protocolo Orgánico",
-    chemical: "Anulación Química",
-    prevention: "Medidas Preventivas",
-    syncNew: "Sincronizar Nuevo Escaneo",
-    indicators: "Indicadores Detectados",
-    confidence: "Coeficiente de Confianza",
-    preventionStrategy: "Estrategia de Prevención",
-    sustainability: "Consejos de Sostenibilidad",
-    biologicalDiagnosis: "Diagnóstico Biológico",
-    severeness: "Gravedad",
-    moderate: "Moderada",
-    spread: "Propagación",
-    standard: "Estándar",
-    processingPathogens: "Procesando Patógenos...",
-    awaitingResults: "Esperando Resultados",
-    searchLang: "Buscar idioma...",
-    focusPrecision: "Precisión de Enfoque",
-    focusDesc: "Analizar áreas específicas de descomposición",
-    l0Diagnostic: "Diagnóstico L0",
-    realtimeCheck: "Verificación de patógenos en tiempo real",
-    retry: "Reintentar Análisis",
-    failed: "No se pudo analizar la imagen. Inténtelo de nuevo con una foto más clara.",
-    mockDiagnosis: "Mancha foliar por Septoria detectada",
-    footer: "Sistema de Inteligencia AgroGenesis",
-    speakResults: "Escuchar Resultados",
-    detailedReport: "Informe Patológico Detallado",
-    yieldImpact: "Impacto Estimado en el Rendimiento",
-    howItWorks: "Cómo funciona",
-    step1Title: "Configuración de Visión",
-    step1Desc: "Capture una imagen de alta resolución del área de la planta afectada utilizando cualquier dispositivo móvil.",
-    step2Title: "Análisis Neuronal",
-    step2Desc: "Nuestra red neuronal L0 detecta más de 150 patógenos únicos y deficiencias metabólicas.",
-    step3Title: "Despliegue de Protocolo",
-    step3Desc: "Reciba protocolos de tratamiento orgánicos y químicos inmediatos y localizados adaptados a su tipo de suelo.",
-    impactTitle: "Impacto Estratégico",
-    impact1Title: "Seguridad Alimentaria",
-    impact1Desc: "Evite la pérdida de cosechas localizadas y estabilice el suministro regional de alimentos.",
-    impact2Title: "Resiliencia Económica",
-    impact2Desc: "Reduzca los costos de insumos aplicando exactamente lo que sus cultivos necesitan, justo cuando lo necesitan.",
-    impact3Title: "Inteligencia de Datos",
-    impact3Desc: "Transforme los datos visuales en pronósticos de cosecha accionables y optimización de rendimientos."
-  },
-  Bengali: {
-    title: "এগ্রোজেনেসি",
-    home: "হোম",
-    scanner: "ডায়াগনস্টিক স্ক্যানার",
-    futureFarming: "চাষাবাদের ভবিষ্যৎ",
-    heroTitle: "আপনার ফসল",
-    heroTitleItalic: "রক্ষা করুন।",
-    heroSubtitle: "আপনার ফসলের জন্য তাৎক্ষণিক AI ডায়াগনস্টিকস মোতায়েন করুন। সেকেন্ডের মধ্যে রোগ শনাক্ত করুন, জৈব চিকিত্সা প্রোটোকল পান এবং ছড়িয়ে পড়ার আগেই ফসলের ক্ষতি রোধ করুন।",
-    startScan: "ভিশন স্ক্যান শুরু করুন",
-    documentation: "নথিপত্র",
-    detectionRate: "সনাক্তকরণের হার",
-    cropsSupported: "সমর্থিত ফসল",
-    scanningPathogens: "প্যাথোজেন স্ক্যান করা হচ্ছে",
-    advancedVision: "উন্নত জৈবিক দৃষ্টি",
-    diagnosisReady: "রোগ নির্ণয় প্রস্তুত",
-    organicCare: "জৈব যত্ন",
-    organicCareDesc: "আপনার ফসলের জন্য বিশেষভাবে তৈরি করা বিস্তারিত, ধাপে ধাপে জৈব চিকিত্সা প্রোটোকল।",
-    diseaseShield: "রোগ প্রতিরক্ষা",
-    diseaseShieldDesc: "উন্নত কৃষি বুদ্ধিমত্তা দ্বারা চালিত আত্মবিশ্বাসের স্কোরের সাথে কীটপতঙ্গ এবং জৈবিক হুমকি আগেভাগেই শনাক্ত করুন।",
-    sustainabilityTitle: "স্থায়িত্ব",
-    sustainabilityDesc: "ভবিষ্যতের ফলন উন্নত করতে এবং আপনার জমিতে টেকসইভাবে রোগের পুনরাবৃত্তি রোধ করতে বিশেষজ্ঞের পরামর্শ নিন।",
-    uploadTitle: "বিশ্লেষণ শুরু করুন",
-    uploadDesc: "পাতার নমুনা আপলোড করুন",
-    symptoms: "দৃশ্যমান লক্ষণ",
-    organic: "জৈব চিকিত্সা",
-    chemical: "রাসায়নিক চিকিত্সা",
-    prevention: "প্রতিরোধমূলক ব্যবস্থা",
-    syncNew: "নতুন স্ক্যান সিঙ্ক করুন",
-    indicators: "শনাক্ত করা সূচক",
-    confidence: "কনফিডেন্স ইনডেক্স",
-    preventionStrategy: "প্রতিরোধের কৌশল",
-    sustainability: "টেকসই চাষাবাদের পরামর্শ",
-    biologicalDiagnosis: "জৈবিক রোগ নির্ণয়",
-    severeness: "তীব্রতা",
-    moderate: "মাঝারি",
-    spread: "বিস্তার",
-    standard: "প্রমিত",
-    processingPathogens: "প্যাথোজেন বিশ্লেষণ করা হচ্ছে...",
-    awaitingResults: "ফলাফলের জন্য অপেক্ষা করা হচ্ছে",
-    searchLang: "ভাষা অনুসন্ধান করুন...",
-    focusPrecision: "ফোকাস প্রিসিশন",
-    focusDesc: "নির্দিষ্ট ক্ষয়প্রাপ্ত এলাকার বিশ্লেষণ",
-    l0Diagnostic: "L0 ডায়াগনস্টিক",
-    realtimeCheck: "রিয়েল-টাইম পপ্যাথোজেন পরীক্ষা",
-    retry: "পুনরায় চেষ্টা করুন",
-    failed: "ছবি বিশ্লেষণ করতে ব্যর্থ হয়েছে। অনুগ্রহ করে আরও পরিষ্কার ছবির সাথে আবার চেষ্টা করুন।",
-    mockDiagnosis: "সেপ্টোরিয়া লিফ স্পট শনাক্ত হয়েছে",
-    footer: "এগ্রোজেনেসি ইন্টেলিজেন্স সিস্টেম",
-    howItWorks: "এটি যেভাবে কাজ করে",
-    step1Title: "ভিশন সেটআপ",
-    step1Desc: "যেকোনো মোবাইল ডিভাইস ব্যবহার করে আক্রান্ত উদ্ভিদের উচ্চ-রেজোলিউশন ছবি তোলো।",
-    step2Title: "নিওরাল বিশ্লেষণ",
-    step2Desc: "আমাদের L0 নিউরাল নেটওয়ার্ক ১৫০টিরও বেশি অনন্য প্যাথোজেন এবং বিপাকীয় ঘাটতি স্ক্যান করে।",
-    step3Title: "প্রোটোকল মোতায়েন",
-    step3Desc: "আপনার মাটির ধরন অনুযায়ী তাৎক্ষণিক জৈব এবং রাসায়নিক চিকিত্সা প্রোটোকল পান।",
-    impactTitle: "কৌশলগত প্রভাব",
-    impact1Title: "খাদ্য নিরাপত্তা",
-    impact1Desc: "ফসলের ক্ষতি রোধ করুন এবং আঞ্চলিক খাদ্য সরবরাহ স্থিতিশীল করুন।",
-    impact2Title: "অর্থনৈতিক স্থিতিস্থাপকতা",
-    impact2Desc: "আপনার ফসলের যা প্রয়োজন ঠিক তাই প্রয়োগ করে খরচ কমান।",
-    impact3Title: "ডেটা ইন্টেলিজেন্স",
-    impact3Desc: "ভিজ্যুয়াল ডেটাকে কার্যকর ফসল পূর্বাভাস এবং ফলন অপ্টিমাইজেশনে রূপান্তর করুন।"
-  },
-  Urdu: {
-    title: "ایگرو جینیسس",
-    home: "ہوم",
-    scanner: "تشخیصی اسکینر",
-    futureFarming: "کاشتکاری کا مستقبل",
-    heroTitle: "اپنی فصل",
-    heroTitleItalic: "بچائیں۔",
-    heroSubtitle: "اپنی فصلوں کے لیے فوری AI تشخیص نافذ کریں۔ سیکنڈوں میں بیماریوں کا پتہ لگائیں، نامیاتی علاج کے طریقے حاصل کریں، اور پھیلنے سے پہلے ناکامی کو روکیں۔",
-    startScan: "ویژن اسکین شروع کریں",
-    documentation: "دستاویزات",
-    detectionRate: "تشخیص کی شرح",
-    cropsSupported: "سپورٹ شدہ فصلیں",
-    scanningPathogens: "جراثیم کی تلاش جاری ہے",
-    advancedVision: "جدید حیاتیاتی وژن",
-    diagnosisReady: "تشخیص تیار ہے",
-    organicCare: "نامیاتی دیکھ بھال",
-    organicCareDesc: "آپ کی فصل کی قسم کے لیے خاص طور پر تیار کردہ تفصیلی، قدم بہ قدم نامیاتی علاج کے طریقے۔",
-    diseaseShield: "بیماریوں سے بچاؤ",
-    diseaseShieldDesc: "جدید زرعی ذہانت کے ذریعے فراہم کردہ اعتماد کے اسکور کے ساتھ کیڑوں اور حیاتیاتی خطرات کی جلد شناخت کریں۔",
-    sustainabilityTitle: "پائیداری",
-    sustainabilityDesc: "مستقبل کی پیداوار کو بہتر بنانے اور اپنے کھیتوں میں بیماری کے دوبارہ ہونے کو مستقل طور پر روکنے کے لیے ماہرانہ مشورے حاصل کریں۔",
-    uploadTitle: "تجزیہ شروع کریں",
-    uploadDesc: "پتے یا فصل کا نمونہ اپ لوڈ کریں",
-    symptoms: "ظاہری علامات",
-    organic: "نامیاتی طریقہ کار",
-    chemical: "کیمیائی طریقہ کار",
-    prevention: "تدارکاتی اقدامات",
-    syncNew: "نیا اسکین کریں",
-    indicators: "شناخت شدہ اشارے",
-    confidence: "اعتماد کا تناسب",
-    preventionStrategy: "روک تھام کی حکمت عملی",
-    sustainability: "پائیداری کا مشورہ",
-    biologicalDiagnosis: "حیاتیاتی تشخیص",
-    severeness: "شدت",
-    moderate: "معتدل",
-    spread: "پھیلاؤ",
-    standard: "معیاری",
-    processingPathogens: "جراثیم کا تجزیہ ہو رہا ہے...",
-    awaitingResults: "نتائج کا انتظار ہے",
-    searchLang: "زبان تلاش کریں...",
-    focusPrecision: "فورس ڈیٹا",
-    focusDesc: "خرابی کے مخصوص حصوں کا تجزیہ کریں",
-    l0Diagnostic: "تشخیص L0",
-    realtimeCheck: "فی الوقت جراثیم کی جانچ",
-    retry: "دوبارہ کوشش کریں",
-    failed: "تصویر کا تجزیہ کرنے میں ناکامی۔ براہ کرم واضح تصویر کے ساتھ دوبارہ کوشش کریں۔",
-    mockDiagnosis: "سیپٹوریا لیف سپاٹ کا پتہ چلا",
-    footer: "ایگرو جینیسس انٹیلی جنس سسٹم",
-    howItWorks: "یہ کیسے کام کرتا ہے",
-    step1Title: "ویژن سیٹ اپ",
-    step1Desc: "کسی بھی موبائل ڈیوائس کا استعمال کرتے ہوئے متاثرہ پودے کے حصے کی ہائی ریزولوشن تصویر کھینچیں۔",
-    step2Title: "اعصابی تجزیہ",
-    step2Desc: "ہمارا L0 نیورل نیٹ ورک 150 سے زیادہ منفرد پیتھوجینز اور میٹابولک کمیوں کو تلاش کرتا ہے۔",
-    step3Title: "پروٹوکول کی تعیناتی",
-    step3Desc: "ایڈمنسٹریشن اپنی مٹی کی قسم کے مطابق فوری، مقامی نامیاتی اور کیمیائی علاج کے پروٹوکول حاصل کریں۔",
-    impactTitle: "تزویراتی اثرات",
-    impact1Title: "غذائی تحفظ",
-    impact1Desc: "مقامی طور پر فصلوں کی ناکامی کو روکیں اور علاقائی خوراک کی فراہمی کو مستحکم کریں۔",
-    impact2Title: "معاشی استحکام",
-    impact2Desc: "اپنی فصلوں کی ضرورت کے عین مطابق اور وقت پر استعمال کر کے لاگت میں کمی لائیں۔",
-    impact3Title: "ڈیٹا انٹیلی جنس",
-    impact3Desc: "بصری ڈیٹا کو قابل عمل فصل کی پیشن گوئی اور پیداوار کی اصلاح میں تبدیل کریں۔"
-  },
-  Arabic: {
-    title: "أجرو جينيسيس",
-    home: "الرئيسية",
-    scanner: "ماسح التشخيص",
-    futureFarming: "مستقبل الزراعة",
-    heroTitle: "أنقذ",
-    heroTitleItalic: "حصادك.",
-    heroSubtitle: "قم بنشر تشخيصات الذكاء الاصطناعي الفورية لمحاصيلك. اكتشف الأمراض في ثوانٍ، واحصل على بروتوكولات العلاج العضوي، وامنع الفشل قبل انتشاره.",
-    startScan: "بدء فحص الرؤية",
-    documentation: "التوثيق",
-    detectionRate: "معدل الكشف",
-    cropsSupported: "المحاصيل المدعومة",
-    scanningPathogens: "جارٍ فحص مسببات الأمراض",
-    advancedVision: "رؤية بيولوجية متقدمة",
-    diagnosisReady: "التشخيص جاهز",
-    organicCare: "العناية العضوية",
-    organicCareDesc: "بروتوكولات علاج عضوي مفصلة خطوة بخطوة مخصصة لنوع محصولك.",
-    diseaseShield: "درع الأمراض",
-    diseaseShieldDesc: "تعرف على الآفات والتهديدات البيولوجية مبكرًا مع درجات ثقة مدعومة بالذكاء الزراعي المتقدم.",
-    sustainabilityTitle: "الاستدامة",
-    sustainabilityDesc: "احصل على نصائح الخبراء لتحسين المحاصيل المستقبلية ومنع تكرار الأمراض بشكل مستدام في حقولك.",
-    uploadTitle: "بدء التحليل",
-    uploadDesc: "تحميل عينة من ورقة الشجر",
-    symptoms: "الأعراض المرئية",
-    organic: "البروتوكول العضوي",
-    chemical: "التدخل الكيميائي",
-    prevention: "تدابير وقائية",
-    syncNew: "مزامنة فحص جديد",
-    indicators: "المؤشرات المكتشفة",
-    confidence: "معامل الثقة",
-    preventionStrategy: "استراتيجية الوقاية",
-    sustainability: "نصيحة الاستدامة",
-    biologicalDiagnosis: "التشخيص البيولوجي",
-    severeness: "الخطورة",
-    moderate: "متوسطة",
-    spread: "الانتشار",
-    standard: "قياسي",
-    processingPathogens: "جارٍ معالجة مسببات الأمراض...",
-    awaitingResults: "في انتظار النتائج",
-    searchLang: "ابحث عن لغة...",
-    focusPrecision: "دقة التركيز",
-    focusDesc: "تحليل مناطق محددة من التحلل",
-    l0Diagnostic: "التشخيص L0",
-    realtimeCheck: "فحص مسببات الأمراض في الوقت الفعلي",
-    retry: "إعادة المحاولة",
-    failed: "فشل تحليل الصورة. يرجى المحاولة مرة أخرى بصورة أوضح.",
-    mockDiagnosis: "تم اكتشاف بقعة أوراق السبتوريا",
-    footer: "نظام استخبارات أجرو جينيسيس",
-    howItWorks: "كيف يعمل الجهاز",
-    step1Title: "إعداد الرؤية",
-    step1Desc: "التقط صورة عالية الدقة لمنطقة النبات المصابة باستخدام أي جهاز محمول.",
-    step2Title: "التحليل العصبي",
-    step2Desc: "تبحث شبكتنا العصبية L0 عن أكثر من 150 من مسببات الأمراض الفريدة والاضطرابات الاستقلابية.",
-    step3Title: "نشر البروتوكول",
-    step3Desc: "احصل على بروتوكولات علاج عضوية وكيميائية فورية ومحلية مصممة لتناسب نوع تربتك.",
-    impactTitle: "التأثير الاستراتيجي",
-    impact1Title: "الأمن الغذائي",
-    impact1Desc: "منع فشل المحاصيل المحلي واستقرار إمدادات الغذاء الإقليمية.",
-    impact2Title: "المرونة الاقتصادية",
-    impact2Desc: "قلل تكاليف المدخلات من خلال تطبيق ما تحتاجه محاصيلك بالضبط، وفقط عندما تحتاج إليه.",
-    impact3Title: "ذكاء البيانات",
-    impact3Desc: "تحويل البيانات المرئية إلى توقعات حصاد قابلة للتنفيذ وتحسينات في الإنتاجية."
-  },
-  French: {
-    title: "AGROGÉNÈSE",
-    home: "Accueil",
-    scanner: "Scanner de Diagnostic",
-    futureFarming: "L'Avenir de l'Agriculture",
-    heroTitle: "SAUVEZ VOTRE",
-    heroTitleItalic: "RÉCOLTE.",
-    heroSubtitle: "Déployez des diagnostics instantanés par IA pour vos cultures. Détectez les maladies en quelques secondes, obtenez des protocoles de traitement organique et prévenez l'échec avant qu'il ne se propage.",
-    startScan: "Démarrer le Scan Vision",
-    documentation: "Documentation",
-    detectionRate: "Taux de détection",
-    cropsSupported: "Cultures supportées",
-    scanningPathogens: "SCAN DES PATHOGÈNES",
-    advancedVision: "Vision Biologique Avancée",
-    diagnosisReady: "Diagnostic Prêt",
-    organicCare: "Soin Biologique",
-    organicCareDesc: "Protocoles de traitement organique détaillés, étape par étape, générés spécifiquement pour le phénotype de votre culture.",
-    diseaseShield: "Bouclier Contre les Maladies",
-    diseaseShieldDesc: "Identifiez les parasites et les menaces biologiques tôt avec des scores de confiance optimisés par une intelligence agricole avancée.",
-    sustainabilityTitle: "Durabilité",
-    sustainabilityDesc: "Obtenez des conseils d'experts pour améliorer les rendements futurs et prévenir durablement la récurrence des maladies dans vos champs.",
-    uploadTitle: "Initialiser l'Analyse",
-    uploadDesc: "Télécharger une coupe transversale ou un échantillon de feuille",
-    symptoms: "Symptômes Visibles",
-    organic: "Protocole Organique",
-    chemical: "Intervention Chimique",
-    prevention: "Mesures Préventives",
-    syncNew: "Synchroniser Nouveau Scan",
-    indicators: "Indicateurs Détectés",
-    confidence: "Coefficient de Confiance",
-    preventionStrategy: "Stratégie de Prévention",
-    sustainability: "Conseils de Durabilité",
-    biologicalDiagnosis: "Diagnostic Biologique",
-    severeness: "Gravité",
-    moderate: "Modérée",
-    spread: "Propagation",
-    standard: "Standard",
-    processingPathogens: "Traitement des Pathogènes...",
-    awaitingResults: "En Attente de Résultats",
-    searchLang: "Rechercher une langue...",
-    focusPrecision: "Précision de Mise au Point",
-    focusDesc: "Analyser les zones de décomposition spécifiques",
-    l0Diagnostic: "Diagnostic L0",
-    realtimeCheck: "Vérification des pathogènes en temps réel",
-    retry: "Réessayer l'Analyse",
-    failed: "Échec de l'analyse de l'image. Veuillez réessayer avec une photo plus claire.",
-    mockDiagnosis: "Tache septorienne détectée",
-    footer: "Système d'Intelligence AgroGenesis",
-    howItWorks: "Comment ça fonctionne",
-    step1Title: "Configuration de la Vision",
-    step1Desc: "Capturez une image haute résolution de la zone de la plante affectée à l'aide de n'importe quel appareil mobile.",
-    step2Title: "Analyse Neuronale",
-    step2Desc: "Notre réseau neuronal L0 scanne plus de 150 agents pathogènes uniques et déficiences métaboliques.",
-    step3Title: "Déploiement du Protocole",
-    step3Desc: "Recevez des protocoles de traitement organiques et chimiques immédiats et localisés adaptés à votre type de sol.",
-    impactTitle: "Impact Stratégique",
-    impact1Title: "Sécurité Alimentaire",
-    impact1Desc: "Prévenir les mauvaises récoltes localisées et stabiliser les approvisionnements alimentaires régionaux.",
-    impact2Title: "Résilience Économique",
-    impact2Desc: "Réduisez vos coûts d'intrants en appliquant précisément ce dont vos cultures ont besoin, exactement quand elles en ont besoin.",
-    impact3Title: "Intelligence des Données",
-    impact3Desc: "Transformez les données visuelles en prévisions de récolte exploitables et en optimisations de rendement."
-  },
-  Mandarin: {
+  "Simplified Chinese": {
     title: "农业创世纪",
     home: "首页",
     scanner: "诊断扫描仪",
@@ -561,133 +173,208 @@ const UI_TRANSLATIONS: Record<string, any> = {
     retry: "重试分析",
     failed: "分析图像失败。请使用更清晰的照片重试。",
     mockDiagnosis: "检测到叶斑病",
-    footer: "AgroGenesis 智能系统"
+    footer: "AgroGenesis 智能系统",
+    speakResults: "朗读结果",
+    detailedReport: "详细病理报告",
+    yieldImpact: "估计产量受损"
   },
-  Portuguese: {
-    title: "AGROGÊNESE",
-    home: "Início",
-    scanner: "Scanner de Diagnóstico",
-    futureFarming: "O Futuro da Agricultura",
-    heroTitle: "SALVE SUA",
-    heroTitleItalic: "COLHEITA.",
-    heroSubtitle: "Implante diagnósticos instantâneos por IA para suas plantações. Detecte doenças em segundos, obtenha protocolos de tratamento orgânico e evite falhas antes que se espalhem.",
-    startScan: "Iniciar Varredura Visão",
-    documentation: "Documentação",
-    detectionRate: "Taxa de Detecção",
-    cropsSupported: "Culturas Suportadas",
-    scanningPathogens: "VARREDURA DE PATÓGENOS",
-    advancedVision: "Visão Biológica Avançada",
-    diagnosisReady: "Diagnóstico Pronto",
-    organicCare: "Cuidado Orgânico",
-    organicCareDesc: "Protocolos de tratamento orgânico detalhados, passo a passo, gerados especificamente para o fenótipo da sua cultura.",
-    diseaseShield: "Escudo de Doenças",
-    diseaseShieldDesc: "Identifique pragas e ameaças biológicas precocemente com pontuações de confiança baseadas em inteligência agrícola avançada.",
-    sustainabilityTitle: "Sustentabilidade",
-    sustainabilityDesc: "Obtenha dicas de cuidados de especialistas para melhorar colheitas futuras e prevenir de forma sustentável a recorrência de doenças em seus campos.",
-    howItWorks: "Como Funciona",
-    step1Title: "Configuração de Visão",
-    step1Desc: "Capture uma imagem de alta resolução da área afetada da planta usando qualquer dispositivo móvel.",
-    step2Title: "Análise Neuronal",
-    step2Desc: "Nossa rede neural L0 faz varredura para mais de 150 patógenos exclusivos e deficiências metabólicas.",
-    step3Title: "Implantação de Protocolo",
-    step3Desc: "Receba protocolos de tratamento orgânico e químico imediatos e localizados, adaptados ao seu tipo de solo.",
-    impactTitle: "Impacto Estratégico",
-    impact1Title: "Segurança Alimentar",
-    impact1Desc: "Previna a quebra de safra localizada e estabilize suprimentos regionais de alimentos.",
-    impact2Title: "Resiliência Econômica",
-    impact2Desc: "Reduza custos de insumos aplicando exatamente o que suas culturas precisam, exatamente quando precisam.",
-    impact3Title: "Inteligência de Dados",
-    impact3Desc: "Transforme dados visuais em previsões de colheita acionáveis e otimizações de rendimento.",
-    uploadTitle: "Inicializar Análise",
-    uploadDesc: "Carregar corte transversal ou amostra de folha",
-    symptoms: "Sintomas Visíveis",
-    organic: "Protocolo Orgânico",
-    chemical: "Intervenção Química",
-    prevention: "Medidas Preventivas",
-    syncNew: "Sincronizar Nova Varredura",
-    indicators: "Indicadores Detectados",
-    confidence: "Coeficiente de Confiança",
-    preventionStrategy: "Estratégia de Prevenção",
-    sustainability: "Dicas de Sustentabilidade",
-    biologicalDiagnosis: "Diagnóstico Biológico",
-    severeness: "Gravidade",
-    moderate: "Moderada",
-    spread: "Propagação",
-    standard: "Padrão",
-    processingPathogens: "Processando Patógenos...",
-    awaitingResults: "Aguardando Resultados",
-    searchLang: "Procurar idioma...",
-    focusPrecision: "Precisão de Foco",
-    focusDesc: "Analisar áreas específicas de decomposição",
-    l0Diagnostic: "Diagnóstico L0",
-    realtimeCheck: "Verificação de patógenos em tempo real",
-    retry: "Repetir Análise",
-    failed: "Falha ao analisar imagem. Tente novamente com uma foto mais clara.",
-    mockDiagnosis: "Mancha de Septoria Detectada",
-    footer: "Sistema de Inteligência AgroGenesis"
+  "Traditional Chinese": {
+    title: "農業創世紀",
+    home: "首頁",
+    scanner: "診斷掃描儀",
+    futureFarming: "農業的未來",
+    heroTitle: "拯救您的",
+    heroTitleItalic: "作物。",
+    heroSubtitle: "為您的作物部署即時 AI 診斷。在幾秒鐘內檢測疾病，獲取有機治療方案，並在失敗蔓延前阻止它。",
+    startScan: "開始視覺掃描",
+    documentation: "文檔",
+    detectionRate: "檢測率",
+    cropsSupported: "支持的作物",
+    scanningPathogens: "正在掃描病原體",
+    advancedVision: "高級生物視覺",
+    diagnosisReady: "診斷就緒",
+    organicCare: "有機護理",
+    organicCareDesc: "專門針對您的作物表型生成的詳細、循序漸進的有機治療方案。",
+    diseaseShield: "疾病盾牌",
+    diseaseShieldDesc: "通過先進農業智能驅動的置信度評分，盡早識別害蟲和生物威脅。",
+    sustainabilityTitle: "可持續性",
+    sustainabilityDesc: "獲取專家護理建議，以提高未來產量並可持續地防止田間疾病復發。",
+    howItWorks: "工作原理",
+    step1Title: "視覺設置",
+    step1Desc: "使用任何移動設備拍攝受影響植物區域的高分辨率圖像。",
+    step2Title: "神經分析",
+    step2Desc: "我們的 L0 神經網絡掃描超過 150 種獨特的病原體和代謝缺陷。",
+    step3Title: "協議部署",
+    step3Desc: "接收根據您的土壤類型量身定做的即時、局部有機與化學治療方案。",
+    impactTitle: "戰略影響",
+    impact1Title: "糧食安全",
+    impact1Desc: "防止局部作物歉收並穩定地區糧食供應。",
+    impact2Title: "經濟韌性",
+    impact2Desc: "在作物需要的時候，精確施用它們需要的肥料，從而降低投入成本。",
+    impact3Title: "數據智能",
+    impact3Desc: "將視覺數據轉化為可操作的收穫預測和產量優化。",
+    uploadTitle: "初始化分析",
+    uploadDesc: "上傳橫截面或葉片樣本",
+    symptoms: "可見症狀",
+    organic: "有機協議",
+    chemical: "化學干預",
+    prevention: "預防措施",
+    syncNew: "同步新掃描",
+    indicators: "檢測到的指標",
+    confidence: "置信係數",
+    preventionStrategy: "預防策略",
+    sustainability: "可持續性建議",
+    biologicalDiagnosis: "生物診斷",
+    severeness: "嚴重程度",
+    moderate: "中度",
+    spread: "傳播",
+    standard: "標準",
+    processingPathogens: "正在處理病原體...",
+    awaitingResults: "等待結果",
+    searchLang: "搜索語言...",
+    focusPrecision: "焦距精度",
+    focusDesc: "分析特定的分解區域",
+    l0Diagnostic: "L0 診斷",
+    realtimeCheck: "實時病原體檢查",
+    retry: "重試分析",
+    failed: "分析圖像失敗。請使用更清晰的照片重試。",
+    mockDiagnosis: "檢測到葉斑病",
+    footer: "AgroGenesis 智能系統",
+    speakResults: "朗讀結果",
+    detailedReport: "詳細病理報告",
+    yieldImpact: "估計產量受損"
   },
-  Russian: {
-    title: "АГРОГЕНЕЗИС",
-    home: "Главная",
-    scanner: "Диагностический сканер",
-    futureFarming: "Будущее сельского хозяйства",
-    heroTitle: "СПАСИТЕ ВАШ",
-    heroTitleItalic: "УРОЖАЙ.",
-    heroSubtitle: "Используйте мгновенную ИИ-диагностику для ваших культур. Обнаруживайте болезни за секунды, получайте протоколы органического лечения и предотвращайте потери до их распространения.",
-    startScan: "Начать визуальное сканирование",
-    documentation: "Документация",
-    detectionRate: "Точность обнаружения",
-    cropsSupported: "Поддерживаемые культуры",
-    scanningPathogens: "СКАНИРОВАНИЕ ПАТОГЕНОВ",
-    advancedVision: "Продвинутое биологическое зрение",
-    diagnosisReady: "Диагноз готов",
-    organicCare: "Органический уход",
-    organicCareDesc: "Подробные пошаговые протоколы органического лечения, созданные специально для фенотипа вашей культуры.",
-    diseaseShield: "Защита от болезней",
-    diseaseShieldDesc: "Выявляйте вредителей и биологические угрозы на ранних стадиях с помощью показателей достоверности на базе передового аграрного интеллекта.",
-    sustainabilityTitle: "Устойчивость",
-    sustainabilityDesc: "Получайте советы экспертов по уходу для повышения будущих урожаев и устойчивого предотвращения повторения болезней на ваших полях.",
-    howItWorks: "Как это работает",
-    step1Title: "Настройка зрения",
-    step1Desc: "Сделайте снимок пораженного участка растения в высоком разрешении с помощью любого мобильного устройства.",
-    step2Title: "Нейронный анализ",
-    step2Desc: "Наша нейронная сеть L0 сканирует более 150 уникальных патогенов и метаболических нарушений.",
-    step3Title: "Развертывание протокола",
-    step3Desc: "Получайте мгновенные локализованные протоколы органического и химического лечения, адаптированные к вашему типу почвы.",
-    impactTitle: "Стратегическое влияние",
-    impact1Title: "Продовольственная безопасность",
-    impact1Desc: "Предотвращайте локальные неурожаи и стабилизируруйте региональные поставки продовольствия.",
-    impact2Title: "Экономическая устойчивость",
-    impact2Desc: "Снижайте затраты на ресурсы, применяя именно то, что нужно вашим культурам, и именно тогда, когда это необходимо.",
-    impact3Title: "Интеллектуальный анализ данных",
-    impact3Desc: "Превращайте визуальные данные в действенные прогнозы урожая и оптимизацию доходности.",
-    uploadTitle: "Инициализировать анализ",
-    uploadDesc: "Загрузить срез или образец листа",
-    symptoms: "Видимые симптомы",
-    organic: "Органический протокол",
-    chemical: "Химическое вмешательство",
-    prevention: "Превентивные меры",
-    syncNew: "Синхронизировать новое сканирование",
-    indicators: "Обнаруженные индикаторы",
-    confidence: "Коэффициент достоверности",
-    preventionStrategy: "Стратегия профилактики",
-    sustainability: "Советы по устойчивости",
-    biologicalDiagnosis: "Биологический диагноз",
-    severeness: "Тяжесть",
-    moderate: "Умеренная",
-    spread: "Распространение",
-    standard: "Стандарт",
-    processingPathogens: "Обработка патогенов...",
-    awaitingResults: "Ожидание результатов",
-    searchLang: "Поиск языка...",
-    focusPrecision: "Точность фокусировки",
-    focusDesc: "Анализ специфических зон разложения",
-    l0Diagnostic: "L0 Диагностика",
-    realtimeCheck: "Проверка патогенов в реальном времени",
-    retry: "Повторить анализ",
-    failed: "Не удалось проанализировать изображение. Попробуйте еще раз с более четким фото.",
-    mockDiagnosis: "Обнаружена септориозная пятнистость листьев",
-    footer: "Интеллектуальная система AgroGenesis"
+  Urdu: {
+    title: "ایگرو جینیسس",
+    home: "ہوم",
+    scanner: "تشخیصی اسکینر",
+    futureFarming: "کاشتکاری کا مستقبل",
+    heroTitle: "اپنی فصل",
+    heroTitleItalic: "بچائیں۔",
+    heroSubtitle: "اپنی فصلوں کے لیے فوری AI تشخیص نافذ کریں۔ سیکنڈوں میں بیماریوں کا پتہ لگائیں، نامیاتی علاج کے طریقے حاصل کریں، اور پھیلنے سے پہلے ناکامی کو روکیں۔",
+    startScan: "ویژن اسکین شروع کریں",
+    documentation: "دستاویزات",
+    detectionRate: "تشخیص کی شرح",
+    cropsSupported: "سپورٹ شدہ فصلیں",
+    scanningPathogens: "جراثیم کی تلاش جاری ہے",
+    advancedVision: "جدید حیاتیاتی وژن",
+    diagnosisReady: "تشخیص تیار ہے",
+    organicCare: "نامیاتی دیکھ بھال",
+    organicCareDesc: "آپ کی فصل کی قسم کے لیے خاص طور پر تیار کردہ تفصیلی، قدم بہ قدم نامیاتی علاج کے طریقے۔",
+    diseaseShield: "بیماریوں سے بچاؤ",
+    diseaseShieldDesc: "جدید زرعی ذہانت کے ذریعے فراہم کردہ اعتماد کے اسکور کے ساتھ کیڑوں اور حیاتیاتی خطرات کی جلد شناخت کریں۔",
+    sustainabilityTitle: "پائیداری",
+    sustainabilityDesc: "مستقبل کی پیداوار کو بہتر بنانے اور اپنے کھیتوں میں بیماری کے دوبارہ ہونے کو مستقل طور پر روکنے کے لیے ماہرانہ مشورے حاصل کریں۔",
+    uploadTitle: "تجزیہ شروع کریں",
+    uploadDesc: "پتے یا فصل کا نمونہ اپ لوڈ کریں",
+    symptoms: "ظاہری علامات",
+    organic: "نامیاتی طریقہ کار",
+    chemical: "کیمیائی طریقہ کار",
+    prevention: "تدارکاتی اقدامات",
+    syncNew: "نیا اسکین کریں",
+    indicators: "شناخت شدہ اشارے",
+    confidence: "اعتماد کا تناسب",
+    preventionStrategy: "روک تھام کی حکمت عملی",
+    sustainability: "پائیداری کا مشورہ",
+    biologicalDiagnosis: "حیاتیاتی تشخیص",
+    severeness: "شدت",
+    moderate: "معتدل",
+    spread: "پھیلاؤ",
+    standard: "معیاری",
+    processingPathogens: "جراثیم کا تجزیہ ہو رہا ہے...",
+    awaitingResults: "نتائج کا انتظار ہے",
+    searchLang: "زبان تلاش کریں...",
+    focusPrecision: "فورس ڈیٹا",
+    focusDesc: "خرابی کے مخصوص حصوں کا تجزیہ کریں",
+    l0Diagnostic: "تشخیص L0",
+    realtimeCheck: "فی الوقت جراثیم کی جانچ",
+    retry: "دوبارہ کوشش کریں",
+    failed: "تصویر کا تجزیہ کرنے میں ناکامی۔ براہ کرم واضح تصویر کے ساتھ دوبارہ کوشش کریں۔",
+    mockDiagnosis: "سیپٹوریا لیف سپاٹ کا پتہ چلا",
+    footer: "ایگرو جینیسس انٹیلی جنس سسٹم",
+    howItWorks: "یہ کیسے کام کرتا ہے",
+    step1Title: "ویژن سیٹ اپ",
+    step1Desc: "کسی بھی موبائل ڈیوائس کا استعمال کرتے ہوئے متاثرہ پودے کے حصے کی ہائی ریزولوشن تصویر کھینچیں۔",
+    step2Title: "اعصابی تجزیہ",
+    step2Desc: "ہمارا L0 نیورل نیٹ ورک 150 سے زیادہ منفرد پیتھوجینز اور میٹابولک کمیوں کو تلاش کرتا ہے۔",
+    step3Title: "پروٹوکول کی تعیناتی",
+    step3Desc: "اپنی مٹی کی قسم کے مطابق فوری، مقامی نامیاتی اور کیمیائی علاج کے پروٹوکول حاصل کریں۔",
+    impactTitle: "تزویراتی اثرات",
+    impact1Title: "غذائی تحفظ",
+    impact1Desc: "مقامی طور پر فصلوں کی ناکامی کو روکیں اور علاقائی خوراک کی فراہمی کو مستحکم کریں۔",
+    impact2Title: "معاشی استحکام",
+    impact2Desc: "اپنی فصلوں کی ضرورت کے عین مطابق اور وقت پر استعمال کر کے لاگت میں کمی لائیں۔",
+    impact3Title: "ڈیٹا انٹیلی جنس",
+    impact3Desc: "بصری ڈیٹا کو قابل عمل فصل کی پیشن گوئی اور پیداوار کی اصلاح میں تبدیل کریں۔",
+    speakResults: "نتائج سنیں",
+    detailedReport: "تفصیلی تشخیصی رپورٹ",
+    yieldImpact: "ممکنہ نقصان"
+  },
+  Sindhi: {
+    title: "ايگرو جينيسسس",
+    home: "گھر",
+    scanner: "تشخيصي اسڪينر",
+    futureFarming: "زراعت جو مستقبل",
+    heroTitle: "پنهنجو فصل",
+    heroTitleItalic: "بچايو.",
+    heroSubtitle: "پنھنجي فصلن لاءِ فوري AI تشخيص تيار ڪريو. سيڪنڊن ۾ بيمارين جو پتو لڳايو، حياتياتي علاج جو طريقو حاصل ڪريو ۽ بيماري کي وڌڻ کان اڳ روڪيو.",
+    startScan: "اسڪين شروع ڪريو",
+    documentation: "دستاویزات",
+    detectionRate: "تشخيص جو ريشو",
+    cropsSupported: "سپورٽ ٿيل فصل",
+    scanningPathogens: "بيمارين جي اسڪيننگ جاري آهي",
+    advancedVision: "جديد حياتياتي نظر",
+    diagnosisReady: "رپورٽ تيار آهي",
+    organicCare: "حياتياتي سنڀال",
+    organicCareDesc: "توهان جي فصل جي قسم لاء تيار ڪيل نامياتي علاج جا طريقا.",
+    diseaseShield: "بيماري کان بچاءُ",
+    diseaseShieldDesc: "ترقي يافته زرعي ذھانت جي ذريعي بيمارين ۽ جيتن کي جلدي سڃاڻو.",
+    sustainabilityTitle: "سنگت ۽ بقا",
+    sustainabilityDesc: "فصل جي پيداوار کي بہتر بنائڻ ۽ بيماري کي ٻيھر اچڻ کان روڪڻ لاء ماهرن جون صلاحون.",
+    uploadTitle: "تجزيي جي شروعات",
+    uploadDesc: "ٻوٽي يا پن جو فوٽو اپلوڊ ڪريو",
+    symptoms: "ظاهر ٿيل نشانيون",
+    organic: "نامياتي پروٽوڪول",
+    chemical: "ڪيميائي علاج",
+    prevention: "حفاظتي اپاءُ",
+    syncNew: "نئون اسڪين ڪريو",
+    indicators: "سڃاڻپ ٿيل نشانيون",
+    confidence: "تصديق جو درجو",
+    preventionStrategy: "بچاءُ جي حڪمت عملي",
+    sustainability: "حفاظتي مشورا",
+    biologicalDiagnosis: "حياتياتي تشخيص",
+    severeness: "شدت",
+    moderate: "معتدل",
+    spread: "پکڙجڻ",
+    standard: "معياري",
+    processingPathogens: "بيمارين جا تجزيا ڪيا پيا وڃن...",
+    awaitingResults: "نتيجن جو انتظار آهي",
+    searchLang: "ٻولي ڳوليو...",
+    focusPrecision: "فوڪس جي درستگي",
+    focusDesc: "خراب ٿيل حصن جو خاص جائزو",
+    l0Diagnostic: "L0 ڊائگنوسٽڪ",
+    realtimeCheck: "زندہ وقت جي چڪاس",
+    retry: "ٻيهر ڪوشش ڪريو",
+    failed: "ٻيهر ڪوشش ڪريو يا صاف تصوير اپلوڊ ڪريو.",
+    mockDiagnosis: "سيپٽوريا پتيءَ جو داغ مليو",
+    footer: "ايگرو جينيسس انٽيلجينس سسٽم",
+    speakResults: "نتيجا ٻڌو",
+    detailedReport: "تفصيلي رپورٽ",
+    yieldImpact: "ممڪن نقصان",
+    howItWorks: "اهو ڪيئن ڪم ڪندو آهي",
+    step1Title: "تصويري ترتيب",
+    step1Desc: "موبائل ڪيمرا جي مدد سان بيمار پن يا حصي جو فوٽو ڪڍو.",
+    step2Title: "دماغي تجزيو (AI)",
+    step2Desc: "اسان جو L0 نيورل سسٽم 150 کان وڌيڪ جراثيمن ۽ ڪمزورين جي سڃاڻپ ڪري ٿو.",
+    step3Title: "علاج جي شروعات",
+    step3Desc: "پنهنجي مٽي جي هدايتن مطابق نامياتي ۽ ڪيميائي حڪمت عمليون حاصل ڪريو.",
+    impactTitle: "فصل تي اثر",
+    impact1Title: "غذائي امن",
+    impact1Desc: "مجموعي فصل جي نقصان کي روڪي ڪري خوراڪ جي سپلاءِ کي يقيني بنايو.",
+    impact2Title: "خرچن ۾ بچت",
+    impact2Desc: "فقط گهربل دوائن جي صحيح مقدار استعمال ڪري خرچ گھٽايو.",
+    impact3Title: "زرعي تجزيا",
+    impact3Desc: "تصويري ڊيٽا جي بنياد تي بهتر فصل ۽ پيداوار جي اڳڪٿي حاصل ڪريو."
   }
 };
 
@@ -728,6 +415,7 @@ export default function App() {
     }
   }, []);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
 
   // Voice State
   const [isRecording, setIsRecording] = useState(false);
@@ -838,6 +526,453 @@ export default function App() {
     setIsSpeaking(true);
   };
 
+  const downloadDiagnosisPDF = async () => {
+    if (!result || downloadingPDF) return;
+    setDownloadingPDF(true);
+
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      let fontName = 'helvetica';
+      
+      // Dynamic Font Loading for non-Latin scripts to avoid blank blocks or gibberish character mapping
+      if (selectedLanguage === "Sindhi" || selectedLanguage === "Urdu") {
+        try {
+          const fontUrl = "/NotoSansArabic-Regular.ttf";
+          const response = await fetch(fontUrl);
+          if (!response.ok) throw new Error("Font fetch failed");
+          const arrayBuffer = await response.arrayBuffer();
+          
+          let binary = '';
+          const bytes = new Uint8Array(arrayBuffer);
+          const len = bytes.byteLength;
+          for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          const fontBase64 = window.btoa(binary);
+          
+          doc.addFileToVFS('NotoSansArabic.ttf', fontBase64);
+          doc.addFont('NotoSansArabic.ttf', 'NotoSansArabic', 'normal');
+          fontName = 'NotoSansArabic';
+        } catch (fontErr) {
+          console.error("Failed to load Arabic/Sindhi font, falling back to default.", fontErr);
+        }
+      } else if (selectedLanguage === "Simplified Chinese" || selectedLanguage === "Traditional Chinese") {
+        try {
+          const fontUrl = "/ZCOOLXiaoWei.ttf";
+          const response = await fetch(fontUrl);
+          if (!response.ok) throw new Error("Font fetch failed");
+          const arrayBuffer = await response.arrayBuffer();
+          
+          let binary = '';
+          const bytes = new Uint8Array(arrayBuffer);
+          const len = bytes.byteLength;
+          for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          const fontBase64 = window.btoa(binary);
+          
+          doc.addFileToVFS('ZCOOLXiaoWei.ttf', fontBase64);
+          doc.addFont('ZCOOLXiaoWei.ttf', 'ChineseFont', 'normal');
+          fontName = 'ChineseFont';
+        } catch (fontErr) {
+          console.error("Failed to load Chinese font, falling back to default.", fontErr);
+        }
+      }
+
+      // Localized dictionary for PDF labels depending on the user's selected language
+      const labelsMap: Record<string, any> = {
+        English: {
+          headerTitle: "AGROGENESIS DIGITAL REPORT",
+          headerSub: "SYSTEM DIAGNOSISTIQUE • PRECISION CROP HEALTH INTELLIGENCE",
+          dateLabel: "DATE",
+          secTypeLabel: "SECURITY TYPE: BIO-ANALYSIS REPORT",
+          verifyStatus: "VERIFY STATUS: COGNITIVE SYSTEM CERTIFIED",
+          h1: "1. Biological Crop & Plant Diagnosis",
+          lblPrimary: "Primary Diagnosis & Plant Name: ",
+          lblConfidence: "AI Diagnosis Confidence Coefficient: ",
+          lblSecState: "Security Pathological State: ",
+          valNormal: "NORMAL PROTOCOL HEALTHY STABILIZED",
+          valInfestation: "PATHO-AGENT CLASSIFIED INFESTATION",
+          h2: "2. Diagnostic Analysis & Pathology Explanation",
+          h3: "3. Pathological Effects on Plant and Harvest Prediction",
+          lblYield: "Economic Harvest / Yield Impact: ",
+          lblSpeed: "Infection Speed Profile: ",
+          valSpeed: "Standard distribution speed. Bio-organic barriers recommended immediately.",
+          h4: "4. Recorded Phenotypic Symptoms & Indicators",
+          h5: "5. Primary Treatment: Organic and Biological Protocol",
+          h6: "6. Secondary Treatment: Synthetic Chemical Remediation",
+          h7: "7. Eco-Prevention Strategies & General Crop Security",
+          lblStabilizer: "Long-term Crop Stabilizer Recommendations:",
+          confidenceSuffix: "confidence index",
+          footerText: "AgroGenesis Systems • Professional Diagnostic Report • Safe Crop Operations",
+          watermark1: "AGROGENESIS COGNITIVE SYSTEMS",
+          watermark2: "SECURITY INTEL DX MASTER LAB PROTOCOL"
+        },
+        "Simplified Chinese": {
+          headerTitle: "AGROGENESIS 数字化诊断报告",
+          headerSub: "诊断系统 • 精准作物健康智能",
+          dateLabel: "发布日期",
+          secTypeLabel: "安全类型: 生物分析诊断报告",
+          verifyStatus: "核验状态: 技术校验中心认证",
+          h1: "一、 作物与植物生物学诊断",
+          lblPrimary: "首要诊断与植物名称: ",
+          lblConfidence: "AI 诊断置信系数: ",
+          lblSecState: "安全病理状态: ",
+          valNormal: "正常状态: 健康、稳定",
+          valInfestation: "病原体侵染状态: 确认感染",
+          h2: "二、 病理诊断分析与详情说明",
+          h3: "三、 作物病理损害与产量预测",
+          lblYield: "经济作物损失 / 产量影响: ",
+          lblSpeed: "感染扩散速度等级: ",
+          valSpeed: "标准扩散速度。建议立即采取有机生物防治屏障。",
+          h4: "四、 记录的植物表型症状和指标",
+          h5: "五、 首轮治理方案: 有机和生物防治协议",
+          h6: "六、 二轮治理方案: 防治类化学制剂干预",
+          h7: "七、 生态预防策略与长期作物安保",
+          lblStabilizer: "长期作物稳定化建议与预防护理:",
+          confidenceSuffix: "置信指数",
+          footerText: "AgroGenesis 系统 • 专业诊断报告 • 作物安全生产作业",
+          watermark1: "AGROGENESIS 智能农业系统",
+          watermark2: "农业诊断技术实验室安全协议"
+        },
+        "Traditional Chinese": {
+          headerTitle: "AGROGENESIS 數位化診斷報告",
+          headerSub: "診斷系統 • 精準作物健康智能",
+          dateLabel: "發布日期",
+          secTypeLabel: "安全類型: 生物分析診斷報告",
+          verifyStatus: "核驗狀態: 技術校驗中心認證",
+          h1: "一、 作物與植物生物學診斷",
+          lblPrimary: "首要診斷與植物名稱: ",
+          lblConfidence: "AI 診斷置信係數: ",
+          lblSecState: "安全病理狀態: ",
+          valNormal: "正常狀態: 健康、穩定",
+          valInfestation: "病原體侵染狀態: 確認感染",
+          h2: "二、 病理診斷分析與詳情說明",
+          h3: "三、 作物病理損害與產量預測",
+          lblYield: "經濟作物損失 / 產量影響: ",
+          lblSpeed: "感染擴散速度等級: ",
+          valSpeed: "標準擴散速度。建議立即採取有機生物防治屏障。",
+          h4: "四、 記錄的植物表型症狀和指標",
+          h5: "五、 首輪治理方案: 有機和生物防治協議",
+          h6: "六、 二輪治理方案: 防治類化學制劑干預",
+          h7: "七、 生態預防策略與長期作物安保",
+          lblStabilizer: "長期作物穩定化建議與預防護理:",
+          confidenceSuffix: "置信指數",
+          footerText: "AgroGenesis 系統 • 專業診斷報告 • 作物安全生產作業",
+          watermark1: "AGROGENESIS 智能農業系統",
+          watermark2: "農業診斷技術實驗室安全協議"
+        },
+        Urdu: {
+          headerTitle: "ایگرو جینیسس ڈیجیٹل رپورٹ",
+          headerSub: "تشخیصی نظام • درست فصل صحت انٹیلی جنس",
+          dateLabel: "تاریخ",
+          secTypeLabel: "سیکورٹی کی قسم: حیاتیاتی تجزیہ رپورٹ",
+          verifyStatus: "تصدیق کی حیثیت: علمی نظام مصدقہ",
+          h1: "1. حیاتیاتی فصل اور پودوں کی تشخیص",
+          lblPrimary: "بنیادی تشخیص اور پودے کا نام: ",
+          lblConfidence: "AI تشخیص اعتماد کا عنصر: ",
+          lblSecState: "سیکورٹی پیتھولوجیکل اسٹیٹ: ",
+          valNormal: "عام پروٹوکول صحت مند مستحکم",
+          valInfestation: "پیتھو ایجنٹ درجہ بند انفیکشن",
+          h2: "2. تشخیصی تجزیہ اور پیتھالوجی کی وضاحت",
+          h3: "3. پودوں پر پیتھولوجیکل اثرات اور فصل کی پیشن گوئی",
+          lblYield: "اقتصادی فصل / پیداوار کا اثر: ",
+          lblSpeed: "انفیکشن پھیلنے کا پروفائل: ",
+          valSpeed: "معیاری رفتار۔ فوری طور پر نامیاتی حیاتیاتی علاج تجویز کیا جاتا ہے۔",
+          h4: "4. درج کردہ علامات اور مشاہدہ شدہ اشارے",
+          h5: "5. بنیادی علاج: نامیاتی اور حیاتیاتی طریقہ کار",
+          h6: "6. ثانوی علاج: مصنوعی کیمیائی علاج",
+          h7: "7. ماحولیاتی روک تھام کی حکمت عملی اور فصلوں کی حفاظت",
+          lblStabilizer: "طویل مدتی فصل کو مستحکم کرنے کی سفارشات:",
+          confidenceSuffix: "اعتماد کا اشاریہ",
+          footerText: "ایگرو جینیسس سسٹمز • پیشہ ورانہ تشخیصی رپورٹ • محفوظ فصل کے آپریشنز",
+          watermark1: "ایگرو جینیسس علمی نظام",
+          watermark2: "سیکورٹی انٹیل تشخیصی لیب پروٹوکول"
+        },
+        Sindhi: {
+          headerTitle: "ايگرو جينيسيس ڊيجيٽل رپورٽ",
+          headerSub: "تشخيصي نظام • فصلن جي صحت لاءِ ترقي يافته ذھانت",
+          dateLabel: "تاريخ",
+          secTypeLabel: "سيڪيورٽي قسم: حياتياتي تجزيو رپورٽ",
+          verifyStatus: "تصديق جو درجو: اي آئي سسٽم پاران منظور ٿيل",
+          h1: "1. ٻوٽي ۽ فصل جي حياتياتي تشخيص",
+          lblPrimary: "بنيادي تشخيص ۽ ٻوٽي جو نالو: ",
+          lblConfidence: "اي آئي تشخيص جي تصديق جو درجو: ",
+          lblSecState: "فصل جي بيماري جو درجو: ",
+          valNormal: "عام پروٽوڪول: ٻوٽو صحتمند ۽ محفوظ آھي",
+          valInfestation: "حياتياتي جراثيم جو خطرناڪ حملو",
+          h2: "2. بيماري جو تجزيو ۽ تفصيلي وضاحت",
+          h3: "3. ٻوٽي تي بيماري جو اثر ۽ پيداوار جو اڳڪٿي",
+          lblYield: "اقتصادي نقصان ۽ پيداوار تي اثر: ",
+          lblSpeed: "بيماري جي پکڙجڻ جي رفتار: ",
+          valSpeed: "معياري رفتار. ترت ئي نامياتي طريقيڪار جي سفارش ڪئي وڃي ٿي.",
+          h4: "4. رڪارڊ ڪيل نشانيون ۽ ظاهر ٿيل ثبوت",
+          h5: "5. بنيادي علاج: نامياتي ۽ حياتياتي حڪمت عملي",
+          h6: "6. ثانوي علاج: ڪيميائي تدارڪاتي اپاءُ",
+          h7: "7. ماحول دوست بچاءُ واري حڪمت عملي ۽ فصل جي سيڪيورٽي",
+          lblStabilizer: "ڊگھي مدت لاء ٻوٽي جي صحت برقرار رکڻ جون صلاحون:",
+          confidenceSuffix: "تصديق جو درجو",
+          footerText: "ايگرو جينيسس سسٽم • پيشه ورانه تشخيصي رپورٽ • محفوظ فصل عمليات",
+          watermark1: "ايگرو جينيسس سسٽم ٻوٽن جي صحت",
+          watermark2: "حفاظتي ۽ تشخيصي ليبارٽري پروٽوڪول"
+        }
+      };
+
+      const labels = labelsMap[selectedLanguage] || labelsMap["English"];
+
+      const setDocFont = (style: 'normal' | 'bold' | 'italic' | 'bolditalic') => {
+        if (fontName === 'helvetica') {
+          doc.setFont('helvetica', style);
+        } else {
+          doc.setFont(fontName, 'normal');
+        }
+      };
+
+      // Corporate/Scientific palette
+      const emerald = [16, 185, 129];
+      const slate = [30, 41, 59];
+
+      let y = 45;
+      let pageNumber = 1;
+
+      const checkPageSpace = (neededHeight: number) => {
+        if (y + neededHeight > 265) {
+          doc.addPage();
+          pageNumber++;
+          drawWatermark();
+          drawPageBorderAndFooter(pageNumber);
+          y = 30; // Reset y coordinate on the new page
+        }
+      };
+
+      const drawWatermark = () => {
+        doc.saveGraphicsState();
+        doc.setTextColor(242, 249, 245); // highly subtle light-toned gray-green
+        doc.setFontSize(24);
+        setDocFont('bolditalic');
+        // Rotating diagonal watermarks across the canvas
+        for (let row = 40; row < 280; row += 75) {
+          doc.text(labels.watermark1, 12, row, { angle: 12 });
+          doc.text(labels.watermark2, 30, row + 35, { angle: 12 });
+        }
+        doc.restoreGraphicsState();
+      };
+
+      const drawPageBorderAndFooter = (pageNum: number) => {
+        // Border frame
+        doc.setDrawColor(229, 231, 235);
+        doc.setLineWidth(0.3);
+        doc.rect(10, 10, 190, 277, 'S');
+
+        // Footer block
+        setDocFont('normal');
+        doc.setFontSize(8);
+        doc.setTextColor(156, 163, 175);
+        doc.text(labels.footerText, 15, 282);
+        
+        const pageLabel = selectedLanguage === "Spanish" ? "Página" :
+                          selectedLanguage === "French" ? "Page" :
+                          selectedLanguage === "German" ? "Seite" :
+                          selectedLanguage === "Italian" ? "Pagina" :
+                          selectedLanguage === "Ukrainian" ? "Storinka" : "Page";
+        doc.text(`${pageLabel} ${pageNum}`, 195, 282, { align: 'right' });
+      };
+
+      // Header Banner block
+      const drawReportHeader = () => {
+        doc.setFillColor(16, 185, 129); // Emerald Background
+        doc.rect(12, 12, 186, 22, 'F');
+        
+        const isRtlLang = ["Arabic", "Urdu", "Sindhi"].includes(selectedLanguage);
+        
+        setDocFont('bold');
+        doc.setFontSize(13); // safer font size for longer titles
+        doc.setTextColor(255, 255, 255);
+        
+        if (isRtlLang) {
+          doc.text(labels.headerTitle, 192, 21, { align: 'right' });
+        } else {
+          doc.text(labels.headerTitle, 16, 21);
+        }
+        
+        setDocFont('normal');
+        doc.setFontSize(8.5);
+        
+        if (isRtlLang) {
+          doc.text(labels.headerSub, 192, 28, { align: 'right' });
+        } else {
+          doc.text(labels.headerSub, 16, 28);
+        }
+
+        // Date and Metadata alignment on the right / left
+        const todayStr = new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        doc.setFontSize(7.5);
+        if (isRtlLang) {
+          doc.text(`${labels.dateLabel}: ${todayStr}`, 16, 18, { align: 'left' });
+          doc.text(labels.secTypeLabel, 16, 23, { align: 'left' });
+          doc.text(labels.verifyStatus, 16, 28, { align: 'left' });
+        } else {
+          doc.text(`${labels.dateLabel}: ${todayStr}`, 192, 18, { align: 'right' });
+          doc.text(labels.secTypeLabel, 192, 23, { align: 'right' });
+          doc.text(labels.verifyStatus, 192, 28, { align: 'right' });
+        }
+      };
+
+      // Initial page drawing
+      drawWatermark();
+      drawPageBorderAndFooter(pageNumber);
+      drawReportHeader();
+
+      const writeHeading = (text: string) => {
+        y += 7;
+        checkPageSpace(12);
+        
+        // Background Strip for the beautiful colorful heading
+        doc.setFillColor(240, 246, 242);
+        doc.rect(15, y - 5, 180, 8, 'F');
+        
+        // Accent Color Side-bar
+        doc.setFillColor(16, 185, 129);
+        doc.rect(15, y - 5, 3, 8, 'F');
+
+        // Heading title core formatting
+        doc.setFontSize(10);
+        setDocFont('bold');
+        doc.setTextColor(16, 185, 129);
+        
+        const isRtlLang = ["Arabic", "Urdu", "Sindhi"].includes(selectedLanguage);
+        if (isRtlLang) {
+          doc.text(text, 191, y - 0.2, { align: 'right' });
+        } else {
+          doc.text(text.toUpperCase(), 22, y - 0.2);
+        }
+        
+        y += 7;
+      };
+
+      const writeText = (text: string, options?: {
+        fontSize?: number;
+        color?: number[];
+        isBold?: boolean;
+        isItalic?: boolean;
+        lineGap?: number;
+        marginTop?: number;
+      }) => {
+        const fontSize = options?.fontSize || 9.5;
+        const color = options?.color || slate;
+        const isBold = options?.isBold || false;
+        const isItalic = options?.isItalic || false;
+        const lineGap = options?.lineGap || 5;
+        const marginTop = options?.marginTop !== undefined ? options.marginTop : 0;
+
+        y += marginTop;
+
+        doc.setFontSize(fontSize);
+        doc.setTextColor(color[0], color[1], color[2]);
+        
+        if (isBold && isItalic) {
+          setDocFont('bolditalic');
+        } else if (isBold) {
+          setDocFont('bold');
+        } else if (isItalic) {
+          setDocFont('italic');
+        } else {
+          setDocFont('normal');
+        }
+
+        const max_width = 175;
+        const splitLines = doc.splitTextToSize(text, max_width);
+        const isRtlLang = ["Arabic", "Urdu", "Sindhi"].includes(selectedLanguage);
+        
+        for (let i = 0; i < splitLines.length; i++) {
+          checkPageSpace(lineGap);
+          if (isRtlLang) {
+            doc.text(splitLines[i], 193, y, { align: 'right' });
+          } else {
+            doc.text(splitLines[i], 18, y);
+          }
+          y += lineGap;
+        }
+      };
+
+      // 1. Biological Plant Diagnosis Heading & Scope
+      writeHeading(labels.h1);
+      
+      const diagnosisStr = result.diseaseName;
+      const confidenceStr = result.confidence;
+      const statusTitle = diagnosisStr.toLowerCase().includes('healthy') ? labels.valNormal : labels.valInfestation;
+
+      writeText(`${labels.lblPrimary}${diagnosisStr}`, { isBold: true, fontSize: 10 });
+      writeText(`${labels.lblConfidence}${confidenceStr} ${labels.confidenceSuffix}`, { isBold: true, color: emerald });
+      
+      // Determine biological path state color (green vs red)
+      const isHealthy = diagnosisStr.toLowerCase().includes('healthy') || diagnosisStr.toLowerCase().includes('स्वस्थ') || diagnosisStr.toLowerCase().includes('sustha') || diagnosisStr.toLowerCase().includes('sog\'lom');
+      writeText(`${labels.lblSecState}${statusTitle}`, { 
+        isBold: true, 
+        color: isHealthy ? emerald : [220, 38, 38] 
+      });
+      y += 2.5;
+
+      // 2. Diagnostics & Explanation
+      writeHeading(labels.h2);
+      writeText(result.detailedAnalysis, { isItalic: true });
+
+      // 3. Effects on Breed
+      writeHeading(labels.h3);
+      
+      writeText(`${labels.lblYield}${result.yieldImpact}`, { isBold: true, color: [217, 119, 6] });
+      writeText(`${labels.lblSpeed}${labels.valSpeed}`);
+      y += 2.5;
+
+      // 4. Symptoms Listing
+      if (result.symptoms && result.symptoms.length > 0) {
+        writeHeading(labels.h4);
+        for (const sym of result.symptoms) {
+          writeText(`• ${sym}`);
+        }
+      }
+
+      // 5. Treatment Protocol (Organic)
+      writeHeading(labels.h5);
+      const organicStr = Array.isArray(result.organicTreatment) ? result.organicTreatment.join('\n\n') : result.organicTreatment;
+      writeText(organicStr);
+
+      // 6. Treatment Protocol (Chemical)
+      writeHeading(labels.h6);
+      const chemicalStr = Array.isArray(result.chemicalTreatment) ? result.chemicalTreatment.join('\n\n') : (result.chemicalTreatment || 'Biological state does not configure immediate chemical interventions.');
+      writeText(chemicalStr);
+
+      // 7. General Care & Prevention
+      writeHeading(labels.h7);
+      writeText(result.prevention);
+
+      if (result.careTips && result.careTips.length > 0) {
+        y += 4;
+        writeText(labels.lblStabilizer, { isBold: true });
+        for (const tip of result.careTips) {
+          writeText(`  - ${tip}`);
+        }
+      }
+
+      // Final save instruction
+      const safeSuffix = diagnosisStr.toLowerCase().replace(/[^a-z0-9]/g, "_");
+      doc.save(`AgroGenesis_Digital_Report_${safeSuffix}.pdf`);
+    } catch (err) {
+      console.error("PDF generation error: ", err);
+    } finally {
+      setDownloadingPDF(false);
+    }
+  };
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -943,7 +1078,7 @@ export default function App() {
     setError(null);
   };
 
-  const isRTL = ["Arabic", "Urdu"].includes(selectedLanguage);
+  const isRTL = ["Arabic", "Urdu", "Sindhi"].includes(selectedLanguage);
 
   return (
     <div 
@@ -1556,20 +1691,42 @@ export default function App() {
                           
                           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-8">
                             <div>
-                              <div className="flex items-center gap-4 mb-2">
+                              <div className="flex flex-wrap items-center gap-4 mb-2">
                                 <h2 className="text-4xl font-bold text-white leading-none">{result.diseaseName}</h2>
-                                <button 
-                                  onClick={handleToggleSpeak}
-                                  className={cn(
-                                    "p-3 rounded-2xl transition-all",
-                                    isSpeaking 
-                                      ? "bg-emerald-500 text-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-pulse" 
-                                      : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
-                                  )}
-                                  title={t(selectedLanguage, "speakResults")}
-                                >
-                                  {isSpeaking ? <VolumeX size={24} /> : <Volume2 size={24} />}
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  <button 
+                                    onClick={handleToggleSpeak}
+                                    className={cn(
+                                      "p-3 rounded-2xl transition-all",
+                                      isSpeaking 
+                                        ? "bg-emerald-500 text-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-pulse" 
+                                        : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
+                                    )}
+                                    title={t(selectedLanguage, "speakResults")}
+                                  >
+                                    {isSpeaking ? <VolumeX size={24} /> : <Volume2 size={24} />}
+                                  </button>
+
+                                  <button 
+                                    onClick={downloadDiagnosisPDF}
+                                    disabled={downloadingPDF}
+                                    className="p-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 rounded-2xl transition-all flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest px-4 shadow-[0_10px_20px_rgba(16,185,129,0.2)] group"
+                                    title="Download Report as PDF"
+                                  >
+                                    <Download size={18} className={cn("transition-transform", downloadingPDF ? "animate-bounce" : "group-hover:translate-y-0.5")} />
+                                    <span>
+                                      {downloadingPDF 
+                                        ? (selectedLanguage === "Sindhi" ? "رپورٽ تيار ٿي رهي آهي..." : 
+                                           selectedLanguage === "Urdu" ? "رپورٹ تیار ہو رہی ہے..." : 
+                                           selectedLanguage === "Simplified Chinese" ? "正在准备报告..." : 
+                                           selectedLanguage === "Traditional Chinese" ? "正在準備報告..." : "Preparing...") 
+                                        : (selectedLanguage === "Sindhi" ? "پي ڊي ايف ڊائون لوڊ ڪريو" : 
+                                           selectedLanguage === "Urdu" ? "پی ڈی ایف ڈاؤن لوڈ کریں" : 
+                                           selectedLanguage === "Simplified Chinese" ? "下载 PDF" : 
+                                           selectedLanguage === "Traditional Chinese" ? "下載 PDF" : "Download PDF")}
+                                    </span>
+                                  </button>
+                                </div>
                               </div>
                               <p className="text-slate-400 text-sm font-medium">{t(selectedLanguage, "confidence")}: <span className="text-emerald-400 font-mono">{result.confidence} Index</span></p>
                             </div>

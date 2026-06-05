@@ -50,7 +50,7 @@ export async function chatWithAgriBot(message: string, context: AnalysisResult, 
   
   YOUR PROTOCOL:
   1. ${isFirstMessage ? "Acknowledge the current diagnostic results professionally (e.g., 'Diagnostic systems report active [Biological Agent] infestation...')." : "Provide direct, expert technical answers without fluff."}
-  2. LANGUAGE CONSISTENCY: Detect the input language (text or audio). Respond EXCLUSIVELY in that same language. If technical terms are common in English, you may provide them in brackets.
+  2. LANGUAGE CONSISTENCY: You MUST respond in ${language}. All explanations, treatments, and conversations must be written strictly in ${language}. If user asks a question in any language (text or audio), respond ONLY in ${language}. Never reply in English unless specifically requested. If technical terms are common in English, you may provide them in brackets.
   3. PERSONA: Be professional, data-driven, and authoritative yet helpful. Avoid being overly 'friendly'; instead, be 'precise' and 'expertise-oriented'.
   4. SCIENTIFIC RIGOR: Explain the 'why' behind treatments. Reference humidity, soil pH, or pathogen spread mechanisms if relevant (use your general knowledge to supplement the scan context).
   5. FORMATTING: Use structured Markdown. Use bold for key terms, lists for protocols, and code blocks OR blockquotes for warning indicators.
@@ -75,7 +75,7 @@ export async function chatWithAgriBot(message: string, context: AnalysisResult, 
   contents.push({ role: 'user', parts: userParts });
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.5-flash",
     contents: contents,
     config: {
       systemInstruction: systemPrompt,
@@ -100,13 +100,14 @@ export async function analyzeCropPhoto(base64Image: string, language: string = "
   4. ESTIMATE the potential yield loss if left untreated in the 'yieldImpact' field.
   
   CONSTRAINTS:
-  - ALL text content MUST be written in ${language}.
+  - ALL values for the fields in the returned JSON object MUST be translated and written EXCLUSIVELY in the ${language} language. For example, if ${language} is Sindhi, every single string value in the resulting parsed JSON object MUST be written in Sindhi script (Arabic-based script).
+  - Do not use English words or Latin alphabet. Ensure the translation is natural and accurate for high-grade agricultural diagnostics.
   - 'organicTreatment' and 'chemicalTreatment' must be highly detailed, including specific steps.
   - Return a structured JSON response matching the required schema.
   - DO NOT provide medical advice for humans, ONLY agricultural guidance for plants.`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.5-flash",
     contents: [
       {
         parts: [
