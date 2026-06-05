@@ -2,12 +2,34 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 let aiInstance: GoogleGenAI | null = null;
 
-function getAI(): GoogleGenAI {
-  if (!aiInstance) {
-    const apiKey = (typeof process !== "undefined" ? process.env.GEMINI_API_KEY : "") || import.meta.env.VITE_GEMINI_API_KEY || "";
-    aiInstance = new GoogleGenAI({ apiKey });
+export function getApiKey(): string {
+  const localKey = typeof window !== "undefined" ? localStorage.getItem('agroGenesis_user_api_key') || "" : "";
+  const processKey = typeof process !== "undefined" ? process.env.GEMINI_API_KEY || "" : "";
+  const importMetaKey = import.meta.env ? import.meta.env.VITE_GEMINI_API_KEY || "" : "";
+  return processKey || importMetaKey || localKey || "";
+}
+
+export function saveUserApiKey(key: string) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem('agroGenesis_user_api_key', key.trim());
+    aiInstance = null; // reset instance to pick up new key
   }
-  return aiInstance;
+}
+
+export function deleteUserApiKey() {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem('agroGenesis_user_api_key');
+    aiInstance = null; // reset instance
+  }
+}
+
+function getAI(): GoogleGenAI {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY_MISSING");
+  }
+  // Create a new instance with the current apiKey (prevents stagnation of state if user changes/enters key)
+  return new GoogleGenAI({ apiKey });
 }
 
 export interface AnalysisResult {

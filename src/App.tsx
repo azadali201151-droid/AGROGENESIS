@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Camera, RefreshCw, Leaf, ShieldAlert, HeartPulse, Sprout, CheckCircle2, AlertCircle, ChevronLeft, Globe, Search, Volume2, VolumeX, MessageSquare, Mic, History, SendHorizontal, Sparkles, User, Bot, X, Trash2, Download } from 'lucide-react';
-import { analyzeCropPhoto, AnalysisResult, chatWithAgriBot } from './services/geminiService';
+import { analyzeCropPhoto, AnalysisResult, chatWithAgriBot, getApiKey, saveUserApiKey, deleteUserApiKey } from './services/geminiService';
 import { cn } from './lib/utils';
 import Markdown from 'react-markdown';
 import { jsPDF } from 'jspdf';
@@ -387,11 +387,24 @@ export default function App() {
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState("English");
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    return (typeof window !== "undefined" && localStorage.getItem("agroGenesis_selected_language")) || "English";
+  });
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [langSearch, setLangSearch] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [hasApiKeySet, setHasApiKeySet] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem("agroGenesis_selected_language", selectedLanguage);
+  }, [selectedLanguage]);
+
+  useEffect(() => {
+    setHasApiKeySet(!!getApiKey());
+  }, []);
 
   // Chat State
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -1062,9 +1075,14 @@ export default function App() {
       const data = await analyzeCropPhoto(base64, selectedLanguage);
       setResult(data);
       saveToHistory(fullDataUrl, data);
-    } catch (err) {
-      setError(t(selectedLanguage, "failed"));
+    } catch (err: any) {
       console.error(err);
+      if (err && err.message === "GEMINI_API_KEY_MISSING") {
+        setError("API_KEY_MISSING");
+      } else {
+        const errorMsg = err?.message || String(err || "Failed to analyze image");
+        setError(errorMsg);
+      }
     } finally {
       setAnalyzing(false);
     }
@@ -1145,6 +1163,36 @@ export default function App() {
               )}
             </button>
             
+            {/* Subtle Client-side API Key setup for static hosts (Vercel/GitHub Pages) */}
+            <button 
+              onClick={() => {
+                const currentVal = getApiKey() || "";
+                const newKey = prompt("Configure Gemini API Key (stored locally and securely in this browser):", currentVal);
+                if (newKey !== null) {
+                  const cleaned = newKey.trim();
+                  if (cleaned === "") {
+                    deleteUserApiKey();
+                    setHasApiKeySet(false);
+                    alert("Custom Gemini API Key removed. Using default environment configuration.");
+                  } else {
+                    saveUserApiKey(cleaned);
+                    setHasApiKeySet(true);
+                    alert("Custom Gemini API Key configured successfully and stored locally in your browser.");
+                  }
+                }
+              }}
+              title="Configure API Key for live diagnostic scanner"
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5 border rounded-xl text-[10px] font-bold transition-all font-mono shadow-inner",
+                hasApiKeySet 
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20" 
+                  : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300"
+              )}
+            >
+              <Sparkles size={12} className={hasApiKeySet ? "text-emerald-400 animate-pulse animate-duration-1000" : "text-slate-400"} />
+              <span className="hidden sm:inline">{hasApiKeySet ? "API Active" : "Config API"}</span>
+            </button>
+
             <div className="relative">
               <button 
                 onClick={() => setShowLangMenu(!showLangMenu)}
@@ -1588,10 +1636,63 @@ export default function App() {
                     </div>
 
                     {error && (
-                      <div className="p-4 bg-red-950/30 border border-red-500/30 text-red-200 rounded-3xl flex items-center gap-4 backdrop-blur-sm">
-                        <div className="p-2 bg-red-500 rounded-lg"><AlertCircle size={20} className="text-white" /></div>
-                        <p className="text-sm font-medium">{t(selectedLanguage, "failed")}</p>
-                        <button onClick={() => processImage(image.split(',')[1], image)} className="ml-auto text-xs font-bold underline text-red-400 hover:text-red-300">{t(selectedLanguage, "retry")}</button>
+                      <div className="p-6 bg-slate-900/90 border border-red-500/30 rounded-3xl space-y-4 shadow-xl backdrop-blur-md">
+                        <div className="flex items-start gap-4">
+                          <div className="p-2.5 bg-red-500/10 rounded-xl text-red-400 mt-1">
+                            <AlertCircle size={20} />
+                          </div>
+                          <div className="space-y-1 flex-1">
+                            {error === "API_KEY_MISSING" ? (
+                              <>
+                                <h4 className="font-bold text-white text-base">Gemini API Key Required</h4>
+                                <p className="text-slate-400 text-sm leading-relaxed">
+                                  To activate vision crop diagnostics on a live host like Vercel or GitHub Pages, a Gemini API Key is required. You can add it securely on client-side below (saved in your web browser local storage), or define <code className="text-emerald-400 font-mono text-xs">VITE_GEMINI_API_KEY</code> on Vercel environment variables.
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <h4 className="font-bold text-white text-base">Diagnostic Error</h4>
+                                <p className="text-slate-400 text-sm leading-relaxed">
+                                  {error.includes("API key") || error.includes("API_KEY") ? "The provided Gemini API key appears to be invalid or deactivated. Please check your credentials." : (t(selectedLanguage, "failed") + ` (${error})`)}
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {error === "API_KEY_MISSING" || error.includes("API key") || error.includes("API_KEY") ? (
+                          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                            <input 
+                              type="password" 
+                              placeholder="Paste your Gemini API Key here (AI Studio / Vertex API)" 
+                              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              value={apiKeyInput}
+                              onChange={(e) => setApiKeyInput(e.target.value)}
+                            />
+                            <button 
+                              onClick={() => {
+                                if (apiKeyInput.trim()) {
+                                  saveUserApiKey(apiKeyInput);
+                                  setHasApiKeySet(true);
+                                  setError(null);
+                                  processImage(image.split(',')[1], image);
+                                }
+                              }}
+                              className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                            >
+                              Activate Scanner
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 justify-end pt-2">
+                            <button onClick={reset} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition-colors">
+                              Reset
+                            </button>
+                            <button onClick={() => processImage(image.split(',')[1], image)} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-bold transition-all">
+                              {t(selectedLanguage, "retry")}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
 
