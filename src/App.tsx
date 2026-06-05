@@ -387,9 +387,7 @@ export default function App() {
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState(() => {
-    return (typeof window !== "undefined" && localStorage.getItem("agroGenesis_selected_language")) || "English";
-  });
+  const [selectedLanguage, setSelectedLanguage] = useState("English");
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [langSearch, setLangSearch] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
