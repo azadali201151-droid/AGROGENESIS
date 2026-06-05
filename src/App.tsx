@@ -542,7 +542,7 @@ export default function App() {
       // Dynamic Font Loading for non-Latin scripts to avoid blank blocks or gibberish character mapping
       if (selectedLanguage === "Sindhi" || selectedLanguage === "Urdu") {
         try {
-          const fontUrl = "/NotoSansArabic-Regular.ttf";
+          const fontUrl = "./NotoSansArabic-Regular.ttf";
           const response = await fetch(fontUrl);
           if (!response.ok) throw new Error("Font fetch failed");
           const arrayBuffer = await response.arrayBuffer();
@@ -563,7 +563,7 @@ export default function App() {
         }
       } else if (selectedLanguage === "Simplified Chinese" || selectedLanguage === "Traditional Chinese") {
         try {
-          const fontUrl = "/ZCOOLXiaoWei.ttf";
+          const fontUrl = "./ZCOOLXiaoWei.ttf";
           const response = await fetch(fontUrl);
           if (!response.ok) throw new Error("Font fetch failed");
           const arrayBuffer = await response.arrayBuffer();

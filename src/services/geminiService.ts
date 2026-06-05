@@ -1,6 +1,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let aiInstance: GoogleGenAI | null = null;
+
+function getAI(): GoogleGenAI {
+  if (!aiInstance) {
+    const apiKey = (typeof process !== "undefined" ? process.env.GEMINI_API_KEY : "") || (import.meta as any).env?.VITE_GEMINI_API_KEY || "";
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+}
 
 export interface AnalysisResult {
   diseaseName: string;
@@ -49,12 +57,8 @@ export async function chatWithAgriBot(message: string, context: AnalysisResult, 
   - Harvest Forecast Impact: ${context.yieldImpact}
   
   YOUR PROTOCOL:
-  1. ${isFirstMessage ? "Acknowledge the current diagnostic results professionally (e.g., 'Diagnostic systems report active [Biological Agent] infestation...')." : "Provide direct, expert technical answers without fluff."}
-  2. LANGUAGE CONSISTENCY: You MUST respond in ${language}. All explanations, treatments, and conversations must be written strictly in ${language}. If user asks a question in any language (text or audio), respond ONLY in ${language}. Never reply in English unless specifically requested. If technical terms are common in English, you may provide them in brackets.
-  3. PERSONA: Be professional, data-driven, and authoritative yet helpful. Avoid being overly 'friendly'; instead, be 'precise' and 'expertise-oriented'.
-  4. SCIENTIFIC RIGOR: Explain the 'why' behind treatments. Reference humidity, soil pH, or pathogen spread mechanisms if relevant (use your general knowledge to supplement the scan context).
-  5. FORMATTING: Use structured Markdown. Use bold for key terms, lists for protocols, and code blocks OR blockquotes for warning indicators.
-  6. SAFETY: Always include a professional disclaimer that biological conditions vary and local agronomist consultation is recommended for large-scale operations.`;
+  - You MUST respond in the requested language.
+  - Provide direct, expert technical answers.`;
 
   const contents: any[] = history.map(msg => ({
     role: msg.role === 'bot' ? 'model' : 'user',
@@ -74,6 +78,7 @@ export async function chatWithAgriBot(message: string, context: AnalysisResult, 
 
   contents.push({ role: 'user', parts: userParts });
 
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: "gemini-3.5-flash",
     contents: contents,
@@ -106,6 +111,7 @@ export async function analyzeCropPhoto(base64Image: string, language: string = "
   - Return a structured JSON response matching the required schema.
   - DO NOT provide medical advice for humans, ONLY agricultural guidance for plants.`;
 
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: "gemini-3.5-flash",
     contents: [
