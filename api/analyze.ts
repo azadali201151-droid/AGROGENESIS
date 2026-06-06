@@ -1,26 +1,5 @@
-import express from "express";
-import path from "path";
 import { GoogleGenAI, Type } from "@google/genai";
 
-const app = express();
-const PORT = 3000;
-
-// Set up body parsers with generous limits for cross-section leaf sample images
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
-// Enable CORS for static clients (like Vercel and GitHub Pages deployments)
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-  next();
-});
-
-// Response schema for crop/plant diagnostic analysis
 const responseSchema = {
   type: Type.OBJECT,
   properties: {
@@ -71,30 +50,35 @@ const responseSchema = {
   ]
 };
 
-// API Health Check
-app.get("/api/health", (req, res) => {
-  res.json({ 
-    status: "healthy",
-    system: "AgroGenesis Intelligence System Server",
-    timestamp: new Date().toISOString()
-  });
-});
+export default async function handler(req: any, res: any) {
+  // CORS support
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
 
-// API endpoint for Crop Photo Analysis
-app.post("/api/analyze", async (req: express.Request, res: express.Response) => {
+  if (req.method === "OPTIONS") {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method not allowed. Use POST." });
+    return;
+  }
+
   try {
     const { image, language } = req.body;
     const lang = language || "English";
 
     if (!image) {
-       res.status(400).json({ error: "No crop preview image was provided." });
-       return;
+      res.status(400).json({ error: "No crop preview image was provided." });
+      return;
     }
 
     const apiKey = process.env.GEMINI_API_KEY || "AIzaSyCKaN06GPUo2--GPP8pfdr8lPciRjXhRUc";
     if (!apiKey) {
-       res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
-       return;
+      res.status(500).json({ error: "GEMINI_API_KEY is not configured on the platform." });
+      return;
     }
 
     const ai = new GoogleGenAI({ apiKey });
@@ -144,8 +128,8 @@ CONSTRAINTS:
     });
 
     if (!response.text) {
-       res.status(500).json({ error: "Empty reply from Gemini services." });
-       return;
+      res.status(500).json({ error: "Empty reply from Gemini services." });
+      return;
     }
 
     const text = response.text.trim();
@@ -160,103 +144,9 @@ CONSTRAINTS:
       parsedResult = JSON.parse(text);
     }
 
-    res.json(parsedResult);
+    res.status(200).json(parsedResult);
   } catch (error: any) {
-    console.error("Analysis Exception:", error);
+    console.error("Vercel Serverless Analysis Exception:", error);
     res.status(500).json({ error: error?.message || "Failed to process image analysis." });
   }
-});
-
-// API endpoint for AgriBot Chat
-app.post("/api/chat", async (req: express.Request, res: express.Response) => {
-  try {
-    const { message, context, language, history, audioBase64 } = req.body;
-    const lang = language || "English";
-
-    const apiKey = process.env.GEMINI_API_KEY || "AIzaSyCKaN06GPUo2--GPP8pfdr8lPciRjXhRUc";
-    if (!apiKey) {
-       res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
-       return;
-    }
-
-    const systemPrompt = `You are the "Senior Agricultural Pathologist" for the AgriGenesis Intelligence System. You provide professional-grade biological and agronomical advice.
-  
-CONTEXT OF CURRENT SCAN:
-- Biological Agent: ${context?.diseaseName || "Healthy / Unknown"}
-- Technical Symptoms: ${(context?.symptoms || []).join(", ")}
-- Proposed Organic Remediation: ${context?.organicTreatment || "N/A"}
-- Chemical Intervention Strategy: ${context?.chemicalTreatment || "N/A"}
-- Harvest Forecast Impact: ${context?.yieldImpact || "N/A"}
-
-YOUR PROTOCOL:
-- You MUST respond in the requested language (${lang}).
-- Provide direct, expert technical answers.`;
-
-    const contents: any[] = (history || []).map((msg: any) => ({
-      role: msg.role === 'bot' ? 'model' : 'user',
-      parts: [{ text: msg.content }]
-    }));
-
-    const userParts: any[] = [{ text: message || (audioBase64 ? "The user provided a voice message." : "") }];
-    
-    if (audioBase64) {
-      userParts.push({
-        inlineData: {
-          mimeType: "audio/webm",
-          data: audioBase64
-        }
-      });
-    }
-
-    contents.push({ role: 'user', parts: userParts });
-
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: contents,
-      config: {
-        systemInstruction: systemPrompt,
-      }
-    });
-
-    if (!response.text) {
-       res.status(500).json({ error: "Empty reply from AI assistant." });
-       return;
-    }
-
-    res.json({ reply: response.text });
-  } catch (error: any) {
-    console.error("Chat Exception:", error);
-    res.status(500).json({ error: error?.message || "Failed to reply to bot chat." });
-  }
-});
-
-// Set up entry points for Vite or Statics
-async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    // Development Mode
-    const { createServer: createViteServer } = await import("vite");
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    // Production Mode
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-  }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[AgroGenesis] Server launched successfully on http://localhost:${PORT}`);
-  });
 }
-
-if (!process.env.VERCEL) {
-  startServer();
-}
-
-export default app;
