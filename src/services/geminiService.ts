@@ -511,18 +511,11 @@ export function getFallbackDiagnosis(lang: string): AnalysisResult {
 
 // Unified fetch helper with fully automated fallback to live pre-authenticated Cloud Run
 async function fetchFromServer(endpoint: string, body: any): Promise<any> {
-  const isStaticHost = typeof window !== "undefined" && 
-    window.location.hostname !== "localhost" && 
-    window.location.hostname !== "127.0.0.1" && 
-    !window.location.hostname.endsWith(".run.app");
-
-  // Determine standard route:
-  // If running on static hosts like Vercel or GitHub Pages, route immediately to the live authenticated Cloud Run backup container.
-  // This completely avoids hitting local 404/index.html pages and saves precious round-trip time.
-  const primaryUrl = isStaticHost ? `${HOSTED_BACKUP_URL}${endpoint}` : endpoint;
-
+  // We ALWAYS try the local host's relative endpoint first (e.g., /api/analyze).
+  // This ensures that when deployed on full-stack web hosting environments like Cloud Run or Vercel,
+  // the client calls its own integrated API endpoint.
   try {
-    const response = await fetch(primaryUrl, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -537,32 +530,32 @@ async function fetchFromServer(endpoint: string, body: any): Promise<any> {
        }
        return await response.json();
     }
-    throw new Error(`Primary endpoint returned status code: ${response.status}`);
-  } catch (err) {
-    console.warn(`Primary API fetch to ${primaryUrl} failed. Activating automated routing mitigation...`, err);
-    
-    // If we haven't already tried the explicit Cloud Run backup host, try it now
-    if (!isStaticHost) {
-      try {
-        const backupUrl = `${HOSTED_BACKUP_URL}${endpoint}`;
-        const response = await fetch(backupUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(body)
-        });
-        if (response.ok) {
-           const contentType = response.headers.get("content-type");
-           if (contentType && contentType.includes("html")) {
-              throw new Error("Backup endpoint returned HTML routing index.");
-           }
-           return await response.json();
-        }
-        throw new Error(`Backup endpoint failed with status key: ${response.status}`);
-      } catch (nestedErr) {
-        console.warn("Hosted cloud backup failed or CORS rejected the connection. Enacting locally simulated specialist analysis...", nestedErr);
+    throw new Error(`Local endpoint returned status code: ${response.status}`);
+  } catch (localErr: any) {
+    console.warn(`Local API fetch to ${endpoint} failed (${localErr?.message || localErr}). Attempting backup routing...`);
+
+    // If local fetch fails (e.g. because we are on a purely static host like GitHub Pages,
+    // or if the serverless function is spinning up / not configured),
+    // we fall back to the live pre-authenticated AI Studio Cloud Run endpoint.
+    try {
+      const backupUrl = `${HOSTED_BACKUP_URL}${endpoint}`;
+      const response = await fetch(backupUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body)
+      });
+      if (response.ok) {
+         const contentType = response.headers.get("content-type");
+         if (contentType && contentType.includes("html")) {
+            throw new Error("Backup endpoint returned HTML routing index.");
+         }
+         return await response.json();
       }
+      throw new Error(`Backup endpoint failed with status key: ${response.status}`);
+    } catch (backupErr) {
+      console.warn("Hosted cloud backup failed or CORS rejected the connection. Enacting locally simulated specialist analysis...", backupErr);
     }
     
     // Bubble up a clear fallback instruction so caller invokes standard local Knowledge Base gracefully

@@ -92,9 +92,9 @@ app.post("/api/analyze", async (req: express.Request, res: express.Response) => 
        return;
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || "AIzaSyCKaN06GPUo2--GPP8pfdr8lPciRjXhRUc";
     if (!apiKey) {
-       res.status(500).json({ error: "GEMINI_API_KEY is not configured on the hosted platform." });
+       res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
        return;
     }
 
@@ -174,9 +174,9 @@ app.post("/api/chat", async (req: express.Request, res: express.Response) => {
     const { message, context, language, history, audioBase64 } = req.body;
     const lang = language || "English";
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || "AIzaSyCKaN06GPUo2--GPP8pfdr8lPciRjXhRUc";
     if (!apiKey) {
-       res.status(500).json({ error: "GEMINI_API_KEY is not configured on the hosted server." });
+       res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
        return;
     }
 
@@ -255,4 +255,8 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;
