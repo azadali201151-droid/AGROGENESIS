@@ -17,12 +17,12 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { message, context, language, history, audioBase64 } = req.body;
+    const { message, context, language, history, audioBase64, apiKey: requestApiKey } = req.body;
     const lang = language || "English";
 
-    const apiKey = process.env.GEMINI_API_KEY || "AIzaSyCKaN06GPUo2--GPP8pfdr8lPciRjXhRUc";
-    if (!apiKey) {
-      res.status(500).json({ error: "GEMINI_API_KEY is not configured on the platform." });
+    const apiKey = requestApiKey || process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === "AIzaSyCKaN06GPUo2--GPP8pfdr8lPciRjXhRUc") {
+      res.status(500).json({ error: "GEMINI_API_KEY_MISSING" });
       return;
     }
 

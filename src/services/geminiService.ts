@@ -509,58 +509,33 @@ export function getFallbackDiagnosis(lang: string): AnalysisResult {
   return picked;
 }
 
-// Unified fetch helper with fully automated fallback to live pre-authenticated Cloud Run
+// Unified fetch helper
 async function fetchFromServer(endpoint: string, body: any): Promise<any> {
-  // We ALWAYS try the local host's relative endpoint first (e.g., /api/analyze).
-  // This ensures that when deployed on full-stack web hosting environments like Cloud Run or Vercel,
-  // the client calls its own integrated API endpoint.
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body)
-    });
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body)
+  });
 
-    if (response.ok) {
-       const contentType = response.headers.get("content-type");
-       if (contentType && contentType.includes("html")) {
-          throw new Error("Received HTML routing instead of valid JSON payload from server.");
-       }
-       return await response.json();
-    }
-    throw new Error(`Local endpoint returned status code: ${response.status}`);
-  } catch (localErr: any) {
-    console.warn(`Local API fetch to ${endpoint} failed (${localErr?.message || localErr}). Attempting backup routing...`);
-
-    // If local fetch fails (e.g. because we are on a purely static host like GitHub Pages,
-    // or if the serverless function is spinning up / not configured),
-    // we fall back to the live pre-authenticated AI Studio Cloud Run endpoint.
-    try {
-      const backupUrl = `${HOSTED_BACKUP_URL}${endpoint}`;
-      const response = await fetch(backupUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body)
-      });
-      if (response.ok) {
-         const contentType = response.headers.get("content-type");
-         if (contentType && contentType.includes("html")) {
-            throw new Error("Backup endpoint returned HTML routing index.");
-         }
-         return await response.json();
-      }
-      throw new Error(`Backup endpoint failed with status key: ${response.status}`);
-    } catch (backupErr) {
-      console.warn("Hosted cloud backup failed or CORS rejected the connection. Enacting locally simulated specialist analysis...", backupErr);
-    }
-    
-    // Bubble up a clear fallback instruction so caller invokes standard local Knowledge Base gracefully
-    throw new Error("KNOWLEDGE_BASE_FALLBACK_TRIGGERED");
+  if (response.ok) {
+     const contentType = response.headers.get("content-type");
+     if (contentType && contentType.includes("html")) {
+        throw new Error("Received HTML routing instead of valid JSON payload from server.");
+     }
+     return await response.json();
   }
+  
+  let errorMsg = `Server endpoint returned status code: ${response.status}`;
+  try {
+    const errorData = await response.json();
+    if (errorData?.error) errorMsg = errorData.error;
+  } catch (e) {
+    // Ignore JSON parse error for error responses
+  }
+  
+  throw new Error(errorMsg);
 }
 
 export async function chatWithAgriBot(message: string, context: AnalysisResult, language: string = "English", history: { role: string; content: string }[] = [], audioBase64?: string): Promise<string> {
@@ -621,7 +596,8 @@ YOUR PROTOCOL:
       context,
       language,
       history,
-      audioBase64
+      audioBase64,
+      apiKey: hasLocalKey ? getApiKey() : undefined
     });
     return result.reply;
   } catch (err) {
@@ -652,6 +628,7 @@ export async function analyzeCropPhoto(base64Image: string, language: string = "
 Analyze this high-resolution image of a crop/plant with 100% technical rigor.
 
 TASK:
+0. IF THE IMAGE DOES NOT CONTAIN A CLEAR PLANT, LEAF, OR CROP, respond with 'diseaseName': "No Plant Detected", and leave other fields empty or "N/A".
 1. IDENTIFY the specific plant species and variety if possible (e.g. Wheat - Kalyan Sona, Tomato - Roma VF). Use 'identifiedPlant' for the common name (translated) and 'botanicalName' for the standard scientific Latin name.
 2. DIAGNOSE with extreme precision whether the plant is Healthy or suffering from a specific Disease, Pest Infestation, or Nutrient Deficiency.
 3. PROVIDE an expert-level pathological breakdown in the 'detailedAnalysis' field.
@@ -712,18 +689,13 @@ CONSTRAINTS:
     }
   }
 
-  // Seamless fallback to unified server analytics endpoint
-  try {
-    const rawResult = await fetchFromServer("/api/analyze", {
-      image: base64Image,
-      language
-    });
-    return enrichAnalysisResult(rawResult, language);
-  } catch (err) {
-    // Ultimate local fallbacks to satisfy "user never face any saving error or failed, infinite scans"
-    console.warn("Server analysis unavailable or failed. Triggering multi-lingual pathological model fallback...", err);
-    return getFallbackDiagnosis(language);
-  }
+  // Unified server analytics endpoint
+  const rawResult = await fetchFromServer("/api/analyze", {
+    image: base64Image,
+    language,
+    apiKey: hasLocalKey ? getApiKey() : undefined
+  });
+  return enrichAnalysisResult(rawResult, language);
 }
 
 // ============================================================================
@@ -1318,16 +1290,5 @@ export function enrichAnalysisResult(result: AnalysisResult, lang: string = "Eng
   const selectedAdvanced = advancedData[lang] || advancedData["English"];
   const advancedDefaults = selectedAdvanced[diseaseType];
 
-  return {
-    ...result,
-    severity: result.severity || defaults.severity,
-    spreadRate: result.spreadRate || defaults.spreadRate,
-    economicUrgency: result.economicUrgency || defaults.economicUrgency,
-    recoveryTime: result.recoveryTime || defaults.recoveryTime,
-    identifiedPlant: result.identifiedPlant || advancedDefaults.identifiedPlant,
-    botanicalName: result.botanicalName || advancedDefaults.botanicalName,
-    plantHealthStatus: result.plantHealthStatus || advancedDefaults.plantHealthStatus,
-    chlorophyllIndex: result.chlorophyllIndex || advancedDefaults.chlorophyllIndex,
-    pathogenType: result.pathogenType || advancedDefaults.pathogenType
-  };
+  return result;
 }

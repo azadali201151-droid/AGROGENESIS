@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Camera, RefreshCw, Leaf, ShieldAlert, HeartPulse, Sprout, CheckCircle2, AlertCircle, ChevronLeft, Globe, Search, Volume2, VolumeX, MessageSquare, Mic, History, SendHorizontal, Sparkles, User, Bot, X, Trash2, Download } from 'lucide-react';
-import { analyzeCropPhoto, AnalysisResult, chatWithAgriBot, getApiKey, saveUserApiKey, deleteUserApiKey, getTranslatedMockResult, enrichAnalysisResult } from './services/geminiService';
+import { analyzeCropPhoto, AnalysisResult, chatWithAgriBot, getApiKey, saveUserApiKey, deleteUserApiKey } from './services/geminiService';
 import { cn } from './lib/utils';
 import Markdown from 'react-markdown';
 import { jsPDF } from 'jspdf';
@@ -458,10 +458,9 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("agroGenesis_selected_language", selectedLanguage);
     if (result) {
-      const translated = getTranslatedMockResult(result.diseaseName, selectedLanguage);
-      if (translated) {
-        setResult(enrichAnalysisResult(translated, selectedLanguage));
-      }
+       // If language changes, we clear result because we don't have a reliable auto-translating local mock.
+       setResult(null);
+       setChatMessages([]);
     }
   }, [selectedLanguage]);
 

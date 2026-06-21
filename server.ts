@@ -83,7 +83,7 @@ app.get("/api/health", (req, res) => {
 // API endpoint for Crop Photo Analysis
 app.post("/api/analyze", async (req: express.Request, res: express.Response) => {
   try {
-    const { image, language } = req.body;
+    const { image, language, apiKey: requestApiKey } = req.body;
     const lang = language || "English";
 
     if (!image) {
@@ -91,9 +91,9 @@ app.post("/api/analyze", async (req: express.Request, res: express.Response) => 
        return;
     }
 
-    const apiKey = process.env.GEMINI_API_KEY || "AIzaSyCKaN06GPUo2--GPP8pfdr8lPciRjXhRUc";
-    if (!apiKey) {
-       res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
+    const apiKey = requestApiKey || process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === "AIzaSyCKaN06GPUo2--GPP8pfdr8lPciRjXhRUc") {
+       res.status(500).json({ error: "GEMINI_API_KEY_MISSING" });
        return;
     }
 
@@ -102,6 +102,7 @@ app.post("/api/analyze", async (req: express.Request, res: express.Response) => 
 Analyze this high-resolution image of a crop/plant with 100% technical rigor.
 
 TASK:
+0. IF THE IMAGE DOES NOT CONTAIN A CLEAR PLANT, LEAF, OR CROP, respond with 'diseaseName': "No Plant Detected", and leave other fields empty or "N/A".
 1. IDENTIFY the specific plant species and variety if possible (e.g. Wheat - Kalyan Sona, Tomato - Roma VF). Use 'identifiedPlant' for the common name (translated) and 'botanicalName' for the standard scientific Latin name.
 2. DIAGNOSE with extreme precision whether the plant is Healthy or suffering from a specific Disease, Pest Infestation, or Nutrient Deficiency.
 3. PROVIDE an expert-level pathological breakdown in the 'detailedAnalysis' field.
@@ -170,12 +171,12 @@ CONSTRAINTS:
 // API endpoint for AgriBot Chat
 app.post("/api/chat", async (req: express.Request, res: express.Response) => {
   try {
-    const { message, context, language, history, audioBase64 } = req.body;
+    const { message, context, language, history, audioBase64, apiKey: requestApiKey } = req.body;
     const lang = language || "English";
 
-    const apiKey = process.env.GEMINI_API_KEY || "AIzaSyCKaN06GPUo2--GPP8pfdr8lPciRjXhRUc";
-    if (!apiKey) {
-       res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
+    const apiKey = requestApiKey || process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === "AIzaSyCKaN06GPUo2--GPP8pfdr8lPciRjXhRUc") {
+       res.status(500).json({ error: "GEMINI_API_KEY_MISSING" });
        return;
     }
 
