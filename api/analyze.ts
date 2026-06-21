@@ -100,9 +100,9 @@ TASK:
 11. ASSESS 'pathogenType': category under classification (e.g., "Fungal - Ascomycota", "Water Mold - Chromista/Oomycota", "Abiotic Nutrient Stress", "Abiotic Water Stress"), translated.
 
 CONSTRAINTS:
-- ALL values for the fields in the returned JSON object MUST be translated and written EXCLUSIVELY in the ${lang} language. For example, if ${lang} is Sindhi, every single string value in the resulting parsed JSON object MUST be written in Sindhi script (Arabic-based script).
+- ALL values for the fields in the returned JSON object MUST be translated and written EXCLUSIVELY in the ${lang} language.
 - Exception: The 'botanicalName' MUST remain in the standard Latin scientific format (e.g. Triticum aestivum), italicized if possible.
-- Do not use English words or Latin alphabet for other fields. Ensure the translation is natural and accurate for high-grade agricultural diagnostics.
+- If the requested language is a non-English language (e.g., Sindhi, Spanish, Hindi), do not use English words or Latin alphabet for other fields. Ensure the translation is natural and accurate for high-grade agricultural diagnostics.
 - 'organicTreatment' and 'chemicalTreatment' must be highly detailed, including specific steps.
 - Return a structured JSON response matching the required schema.
 - DO NOT provide medical advice for humans, ONLY agricultural guidance for plants.`;
