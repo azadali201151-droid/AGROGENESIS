@@ -118,7 +118,7 @@ TASK:
 CONSTRAINTS:
 - ALL values for the fields in the returned JSON object MUST be translated and written EXCLUSIVELY in the ${lang} language.
 - Exception: The 'botanicalName' MUST remain in the standard Latin scientific format (e.g. Triticum aestivum), italicized if possible.
-- If the requested language is a non-English language (e.g., Sindhi, Spanish, Hindi), do not use English words or Latin alphabet for other fields. Ensure the translation is natural and accurate for high-grade agricultural diagnostics.
+- If the requested language is not English, you must translate all fields appropriately and avoid mixing English words into the output. Ensure the translation is natural and accurate for high-grade agricultural diagnostics.
 - 'organicTreatment' and 'chemicalTreatment' must be highly detailed, including specific steps.
 - Return a structured JSON response matching the required schema.
 - DO NOT provide medical advice for humans, ONLY agricultural guidance for plants.`;
